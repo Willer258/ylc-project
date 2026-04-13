@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if request has a valid device UUID header or field
+    function isParticipant() {
+      return request.auth != null || request.resource.data.deviceUUID is string;
+    }
+
+    // Events — read by all, write by admin only
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if false; // Admin writes via server/console
+
+      // Members — anyone can create their own entry, read team members
+      match /members/{memberId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if true;
+      }
+
+      // Teams — read by all, managed by admin
+      match /teams/{teamId} {
+        allow read: if true;
+        allow update: if true; // For joining, voting, scanning
+        allow create, delete: if false;
+
+        // Team members
+        match /members/{memberId} {
+          allow read: if true;
+          allow create, update: if true;
+        }
+
+        // Scans — participants can create, all can read
+        match /scans/{scanId} {
+          allow read: if true;
+          allow create: if true;
+        }
+      }
+
+      // Phrases — read by all, admin manages
+      match /phrases/{phraseId} {
+        allow read: if true;
+        allow write: if false;
+
+        match /words/{wordId} {
+          allow read: if true;
+          allow write: if false;
+        }
+      }
+
+      // Photos — read visible, create by participants
+      match /photos/{photoId} {
+        allow read: if true;
+        allow create: if true;
+        allow update, delete: if false; // Admin via console
+      }
+
+      // Reviews
+      match /reviews/{reviewId} {
+        allow read: if false; // Admin only via console
+        allow create: if true;
+      }
+    }
+
+    // Announcements
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Guide messages (static)
+    match /guideMessages/{messageId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
