@@ -21,6 +21,8 @@ export default function AdminGameLivePage() {
   const [templates, setTemplates] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [totalWords, setTotalWords] = useState(0);
+  const [teamPhrases, setTeamPhrases] = useState<Record<string, number>>({});
+  const [phraseTexts, setPhraseTexts] = useState<string[]>([]);
 
   // Load event
   useEffect(() => {
@@ -39,6 +41,7 @@ export default function AdminGameLivePage() {
       if (snap.exists()) {
         setGameStatus(snap.data().status || "waiting");
         setLeaderboard(snap.data().leaderboard || []);
+        setTeamPhrases(snap.data().teamPhrases || {});
       }
     });
     return unsub;
@@ -61,6 +64,7 @@ export default function AdminGameLivePage() {
         const phrases = snap.data().phrases || [];
         const total = phrases.reduce((sum: number, p: { words?: unknown[] }) => sum + (p.words?.length || 0), 0);
         setTotalWords(total);
+        setPhraseTexts(phrases.map((p: { text: string }) => p.text));
       }
     });
     return unsub;
@@ -69,18 +73,55 @@ export default function AdminGameLivePage() {
   async function handleStartGame() {
     if (!selectedTemplate) return;
 
-    // Create game instance
+    // Load template to get phrases
+    const { getDoc } = await import("firebase/firestore");
+    const templateSnap = await getDoc(doc(db, "gameTemplates", selectedTemplate));
+    if (!templateSnap.exists()) {
+      alert("Template introuvable !");
+      return;
+    }
+    const phrases = templateSnap.data().phrases || [];
+    if (phrases.length === 0) {
+      alert("Ce template n'a aucune phrase !");
+      return;
+    }
+
+    // Get selected teams
+    const teamsSnap = await getDocs(collection(db, "events", EVENT_ID, "teams"));
+    const selectedTeamDocs = teamsSnap.docs.filter((d) => selectedTeams.has(d.id));
+
+    if (selectedTeamDocs.length === 0) {
+      alert("Selectionnez au moins une equipe !");
+      return;
+    }
+
+    // Randomly assign 1 phrase per team (shuffle phrases indices)
+    const phraseIndices = Array.from({ length: phrases.length }, (_, i) => i);
+    // Shuffle
+    for (let i = phraseIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [phraseIndices[i], phraseIndices[j]] = [phraseIndices[j], phraseIndices[i]];
+    }
+
+    const teamPhrases: Record<string, number> = {};
+    selectedTeamDocs.forEach((teamDoc, i) => {
+      // Cycle through phrases if more teams than phrases
+      teamPhrases[teamDoc.id] = phraseIndices[i % phraseIndices.length];
+    });
+
+    // Create game instance with team → phrase mapping
     await setDoc(doc(db, "gameInstances", selectedTemplate), {
       templateId: selectedTemplate,
       eventId: EVENT_ID,
       status: "active",
       startedAt: serverTimestamp(),
       leaderboard: [],
+      teamPhrases,
       config: {
         pointsBase: 100,
-        speedBonus: [30, 20, 10],
-        maxPenalty: 25,
-        penaltyPerAttempt: 5,
+        noHintBonus: 50,
+        completionBonus: 300,
+        firstCompletionBonus: 500,
       },
     });
 
@@ -89,26 +130,25 @@ export default function AdminGameLivePage() {
       activeGameId: selectedTemplate,
     });
 
-    // Initialize progress for selected teams only
-    const teamsSnap = await getDocs(collection(db, "events", EVENT_ID, "teams"));
-    const selectedTeamDocs = teamsSnap.docs.filter((d) => selectedTeams.has(d.id));
-
+    // Initialize progress for each team with their assigned phrase
     for (const teamDoc of selectedTeamDocs) {
       await setDoc(doc(db, "gameProgress", selectedTemplate, "teams", teamDoc.id), {
         score: 0,
         completedWords: 0,
+        phraseIndex: teamPhrases[teamDoc.id],
         slots: {},
         lastActivityAt: serverTimestamp(),
       });
     }
 
-    // Update leaderboard with selected team names
+    // Leaderboard with team names + assigned phrase info
     const leaderboardInit = selectedTeamDocs.map((d, i) => ({
       teamId: d.id,
       teamName: d.data().name || d.id,
       score: 0,
       completedWords: 0,
       rank: i + 1,
+      phraseIndex: teamPhrases[d.id],
     }));
     await updateDoc(doc(db, "gameInstances", selectedTemplate), {
       leaderboard: leaderboardInit,
@@ -349,7 +389,12 @@ export default function AdminGameLivePage() {
                     <div>
                       <p className="font-bold text-white">{entry.teamName}</p>
                       <p className="text-xs text-white/30">
-                        {entry.completedWords}/{totalWords} mots
+                        {entry.completedWords} mots trouves
+                        {teamPhrases[entry.teamId] != null && phraseTexts[teamPhrases[entry.teamId]] && (
+                          <span className="ml-1 text-amber-400/40">
+                            — &ldquo;{phraseTexts[teamPhrases[entry.teamId]].substring(0, 25)}...&rdquo;
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
