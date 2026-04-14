@@ -1,0 +1,17 @@
+{
+  "name": "Young Christian Life",
+  "short_name": "YLC",
+  "description": "Application evenementielle chretienne — chasse au tresor et aventure",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#82511d",
+  "background_color": "#FDF6EC",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -12,6 +12,8 @@ const NAV_ITEMS = [
   { href: "/admin/game/live", label: "Jeu — Live", icon: "stream" },
   { href: "/admin/photos", label: "Photos", icon: "photo_library" },
   { href: "/admin/reviews", label: "Avis", icon: "reviews" },
+  { href: "/admin/announcements", label: "Annonces", icon: "campaign" },
+  { href: "/admin/game/stats", label: "Jeu — Stats", icon: "leaderboard" },
 ];
 
 export function AdminSidebar() {

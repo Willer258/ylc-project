@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
-import { FieldValue } from "firebase-admin/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function normalize(str: string): string {
   return str
     .toLowerCase()
     .trim()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 export async function POST(req: NextRequest) {
@@ -29,8 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Get game instance — verify game is active
-    const instanceSnap = await adminDb.doc(`gameInstances/${gameId}`).get();
-    if (!instanceSnap.exists) {
+    const instanceSnap = await getDoc(doc(db, "gameInstances", gameId));
+    if (!instanceSnap.exists()) {
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
     }
     const gameStatus = instanceSnap.data()?.status;
@@ -39,8 +40,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Get game template
-    const templateSnap = await adminDb.doc(`gameTemplates/${gameId}`).get();
-    if (!templateSnap.exists) {
+    const templateSnap = await getDoc(doc(db, "gameTemplates", gameId));
+    if (!templateSnap.exists()) {
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
@@ -56,15 +57,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Normalize and compare
-    const correct = normalize(guess) === normalize(word.value);
+    const normalizedGuess = normalize(guess);
+    const normalizedWord = normalize(word.value);
+    const correct = normalizedGuess === normalizedWord;
 
     // Update team progress
     const wordKey = `word_${phraseIndex}_${wordIndex}`;
-    const progressRef = adminDb.doc(`gameProgress/${gameId}/teams/${teamId}`);
-    const progressSnap = await progressRef.get();
+    const progressRef = doc(db, "gameProgress", gameId, "teams", teamId);
+    const progressSnap = await getDoc(progressRef);
 
-    if (!progressSnap.exists) {
-      await progressRef.set({
+    if (!progressSnap.exists()) {
+      await setDoc(progressRef, {
         score: 0,
         completedWords: 0,
         slots: {},
@@ -102,7 +105,7 @@ export async function POST(req: NextRequest) {
       const currentScore = progressSnap.data()?.score || 0;
       const currentCompleted = progressSnap.data()?.completedWords || 0;
 
-      await progressRef.update({
+      await updateDoc(progressRef, {
         [`slots.${wordKey}`]: {
           ...currentSlot,
           status: "completed",
@@ -114,7 +117,7 @@ export async function POST(req: NextRequest) {
         },
         score: currentScore + points,
         completedWords: currentCompleted + 1,
-        lastActivityAt: FieldValue.serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
       });
 
       // Update leaderboard
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest) {
       }
       leaderboard.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
       leaderboard.forEach((e: { rank: number }, i: number) => { e.rank = i + 1; });
-      await adminDb.doc(`gameInstances/${gameId}`).update({ leaderboard });
+      await updateDoc(doc(db, "gameInstances", gameId), { leaderboard });
 
       return NextResponse.json({
         correct: true,
@@ -141,16 +144,42 @@ export async function POST(req: NextRequest) {
         alreadyCompleted: false,
       });
     } else {
-      // Wrong answer
-      await progressRef.update({
+      // Wrong answer — check if we should auto-unlock a hint
+      const wordHints: Array<{ type: string }> = word.hints || [];
+      const alreadyUnlocked: string[] = currentSlot.hintsUnlocked || [];
+      let newHintsUnlocked = [...alreadyUnlocked];
+      let newHintsUsed = currentSlot.hintsUsed || 0;
+      let hintUnlockedType: string | null = null;
+
+      // After 3 attempts → unlock first available hint
+      // After 6 attempts → unlock second available hint
+      const thresholds = [3, 6];
+      for (const threshold of thresholds) {
+        if (newAttempts >= threshold) {
+          const nextHint = wordHints.find(
+            (h) => !newHintsUnlocked.includes(h.type)
+          );
+          if (nextHint) {
+            newHintsUnlocked.push(nextHint.type);
+            newHintsUsed += 1;
+            hintUnlockedType = nextHint.type;
+          }
+        }
+      }
+
+      await updateDoc(progressRef, {
         [`slots.${wordKey}.attempts`]: newAttempts,
         [`slots.${wordKey}.status`]: "active",
-        lastActivityAt: FieldValue.serverTimestamp(),
+        [`slots.${wordKey}.hintsUnlocked`]: newHintsUnlocked,
+        [`slots.${wordKey}.hintsUsed`]: newHintsUsed,
+        lastActivityAt: serverTimestamp(),
       });
 
       return NextResponse.json({
         correct: false,
         attempts: newAttempts,
+        hintUnlocked: hintUnlockedType,
+        hintsUnlocked: newHintsUnlocked,
       });
     }
   } catch (err) {

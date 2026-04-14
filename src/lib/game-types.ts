@@ -66,10 +66,13 @@ export function shuffleWord(word: string): string {
 }
 
 export function splitPhrase(text: string): Word[] {
-  return text.split(/\s+/).map((w, i) => ({
-    index: i,
-    value: w,
-    letterCount: w.length,
-    hints: [],
-  }));
+  return text.split(/\s+/).map((w, i) => {
+    const clean = w.replace(/[^a-zA-ZÀ-ÿ0-9'-]/g, "");
+    return {
+      index: i,
+      value: clean.toUpperCase(),
+      letterCount: clean.length,
+      hints: [],
+    };
+  });
 }

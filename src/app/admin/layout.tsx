@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/sidebar";
 
-const PUBLIC_ROUTES = ["/admin/login", "/admin/auth/callback"];
+const PUBLIC_ROUTES = ["/admin/login", "/admin/auth/callback", "/admin/display"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

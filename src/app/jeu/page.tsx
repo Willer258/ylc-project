@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthContext } from "@/components/auth-provider";
@@ -8,6 +8,9 @@ import { useSearchParams } from "next/navigation";
 import { QrScanner } from "@/components/qr-scanner";
 import { HINT_LABELS, HINT_ICONS, type Hint } from "@/lib/game-types";
 import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
+import { playWordFound, playVictory } from "@/lib/sounds";
+import { useToast } from "@/components/toast";
 
 const EVENT_ID = "event-default";
 
@@ -68,7 +71,9 @@ function JeuPage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHint, setShowHint] = useState<Hint | null>(null);
   const [phraseComplete, setPhraseComplete] = useState(false);
+  const confettiFired = useRef(false);
   const [completedReference, setCompletedReference] = useState("");
+  const { showToast, ToastContainer } = useToast();
 
   // Load active game
   useEffect(() => {
@@ -134,6 +139,7 @@ function JeuPage() {
   const [rawProgress, setRawProgress] = useState<Record<string, unknown> | null>(null);
 
   // Load team progress (real-time sync)
+  const prevCompletedRef = useRef(0);
   useEffect(() => {
     if (!gameId || !teamId) return;
     const unsub = onSnapshot(
@@ -141,13 +147,20 @@ function JeuPage() {
       (snap) => {
         if (!snap.exists()) return;
         const data = snap.data();
+        const newCompleted = data.completedWords || 0;
+        // Play sound when a teammate finds a word (not on initial load)
+        if (prevCompletedRef.current > 0 && newCompleted > prevCompletedRef.current) {
+          playWordFound();
+          showToast("Un coequipier a trouve un mot !", "success");
+        }
+        prevCompletedRef.current = newCompleted;
         setScore(data.score || 0);
-        setCompletedWords(data.completedWords || 0);
+        setCompletedWords(newCompleted);
         setRawProgress(data);
       }
     );
     return unsub;
-  }, [gameId, teamId]);
+  }, [gameId, teamId, showToast]);
 
   // Apply progress to phrases when both are loaded
   useEffect(() => {
@@ -239,6 +252,7 @@ function JeuPage() {
       const data = await res.json();
 
       if (data.correct) {
+        playWordFound();
         setFeedback("correct");
         setTimeout(() => {
           setSelectedWord(null);
@@ -267,12 +281,29 @@ function JeuPage() {
   const totalWords = phrases.reduce((s, p) => s + p.words.length, 0);
   const myRank = leaderboard.find((e) => e.teamId === teamId)?.rank;
 
+  // Confetti + victory sound on phrase completion
+  useEffect(() => {
+    if (phraseComplete && !confettiFired.current) {
+      confettiFired.current = true;
+      playVictory();
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      setTimeout(() => {
+        confetti({ particleCount: 80, spread: 100, origin: { x: 0.2, y: 0.5 } });
+        confetti({ particleCount: 80, spread: 100, origin: { x: 0.8, y: 0.5 } });
+      }, 600);
+      setTimeout(() => {
+        confetti({ particleCount: 150, spread: 120, origin: { y: 0.4 }, startVelocity: 45 });
+      }, 1200);
+    }
+  }, [phraseComplete]);
+
   // === SCREENS ===
 
   // No game
   if (gameStatus === "nogame") {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-6">
+        <ToastContainer />
         <motion.div
           className="text-center space-y-4"
           initial={{ opacity: 0, y: 20 }}
@@ -300,6 +331,7 @@ function JeuPage() {
   if (gameStatus === "paused") {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-6">
+        <ToastContainer />
         <motion.div
           className="text-center space-y-4"
           initial={{ opacity: 0 }}
@@ -319,78 +351,149 @@ function JeuPage() {
     );
   }
 
-  // Phrase complete — REVELATION
+  // Phrase complete — VICTORY (confetti effect)
+
   if (phraseComplete) {
     const fullText = phrases[0]?.words.map((w) => w.value).join(" ") || "";
+    const rank = leaderboard.find((e) => e.teamId === teamId)?.rank;
+    const isFirst = rank === 1;
+
     return (
       <motion.div
         className="min-h-dvh flex items-center justify-center px-6 bg-gradient-to-b from-background to-primary/5"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
+        <ToastContainer />
         <div className="text-center max-w-sm space-y-8">
-          {/* Confetti */}
+          {/* Trophy / celebration */}
           <motion.div
-            className="text-6xl"
+            className="text-7xl"
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 200, damping: 15 }}
           >
-            🎉
+            {isFirst ? "🏆" : "🎉"}
           </motion.div>
 
           <motion.h1
-            className="font-headline text-2xl font-extrabold text-primary"
+            className="font-headline text-3xl font-extrabold text-primary"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            Phrase Complete !
+            {isFirst ? "Champions !" : "Bravo !"}
           </motion.h1>
+
+          {/* Victory message */}
+          <motion.p
+            className="text-on-surface-variant text-lg leading-relaxed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            {isFirst
+              ? "Vous etes la premiere equipe a terminer la chasse au tresor ! Allez recuperer votre lot aupres de l'animateur !"
+              : `Vous avez termine en ${rank}e position ! Felicitations a toute l'equipe !`}
+          </motion.p>
 
           {/* Phrase reveal */}
           <motion.div
             className="bg-surface-container-lowest rounded-2xl p-6 editorial-shadow"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 1 }}
           >
+            <p className="text-[10px] text-on-surface-variant/40 font-bold uppercase tracking-widest mb-3">
+              Le verset etait
+            </p>
             <p className="font-headline text-xl font-bold text-on-surface leading-relaxed">
               &ldquo;{fullText}&rdquo;
             </p>
-            {/* Reference reveal */}
             <motion.p
               className="text-primary font-bold mt-4 text-lg"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.5, duration: 0.8 }}
+              transition={{ delay: 2, duration: 0.8 }}
             >
               — {completedReference}
             </motion.p>
           </motion.div>
 
-          {/* Score */}
-          <motion.div
-            className="bg-primary/10 rounded-xl px-6 py-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2 }}
-          >
-            <p className="text-sm text-primary/60">Score final</p>
-            <p className="font-headline text-3xl font-extrabold text-primary">{score} pts</p>
-          </motion.div>
+          {/* Prize CTA for winners */}
+          {isFirst && (
+            <motion.div
+              className="bg-amber-500/10 border border-amber-500/20 rounded-2xl px-6 py-5"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 2.5 }}
+            >
+              <span className="material-symbols-outlined text-amber-500 text-3xl block mb-2">
+                redeem
+              </span>
+              <p className="text-amber-700 font-bold text-sm">
+                Presentez cet ecran a l&apos;animateur pour recuperer votre recompense !
+              </p>
+            </motion.div>
+          )}
 
           <motion.button
             onClick={() => setShowLeaderboard(true)}
             className="gradient-cta text-on-primary px-8 py-3 rounded-full font-bold"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 2.5 }}
+            transition={{ delay: 3 }}
             whileTap={{ scale: 0.95 }}
           >
             Voir le classement
           </motion.button>
         </div>
+
+        {/* Leaderboard modal */}
+        <AnimatePresence>
+          {showLeaderboard && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center px-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLeaderboard(false)}
+            >
+              <div className="absolute inset-0 bg-on-surface/70 backdrop-blur-sm" />
+              <motion.div
+                className="relative z-10 w-full max-w-sm bg-surface-container-lowest rounded-3xl p-6 editorial-shadow"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="font-headline text-xl font-bold text-center mb-6">Classement Final</h2>
+                {leaderboard.sort((a, b) => b.score - a.score).map((e, i) => (
+                  <motion.div
+                    key={e.teamId}
+                    className={`flex items-center justify-between py-3 ${
+                      e.teamId === teamId ? "text-primary" : "text-on-surface-variant"
+                    }`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                  >
+                    <span className="text-lg font-bold">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}{" "}
+                      {e.teamName}{e.teamId === teamId ? " (vous)" : ""}
+                    </span>
+                    <span className="font-mono font-bold text-lg">{e.score}</span>
+                  </motion.div>
+                ))}
+                <button
+                  onClick={() => setShowLeaderboard(false)}
+                  className="w-full mt-6 py-3 rounded-full bg-surface-container text-on-surface-variant font-bold"
+                >
+                  Fermer
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   }
@@ -402,6 +505,7 @@ function JeuPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
+      <ToastContainer />
       {/* Header */}
       <motion.div
         className="px-5 mb-5"
@@ -554,7 +658,7 @@ function JeuPage() {
                         animate={{ opacity: 1, rotateX: 0 }}
                         transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       >
-                        {word.value}
+                        {word.value.toUpperCase()}
                       </motion.span>
                     ) : (
                       <span className={`flex gap-[2px] px-1 py-1 rounded-lg transition-colors ${
@@ -760,14 +864,14 @@ function JeuPage() {
                 <input
                   type="text"
                   value={guess}
-                  onChange={(e) => setGuess(e.target.value)}
-                  placeholder="Votre reponse..."
+                  onChange={(e) => setGuess(e.target.value.toUpperCase())}
+                  placeholder="VOTRE REPONSE..."
                   autoFocus
                   autoComplete="off"
                   autoCorrect="off"
-                  autoCapitalize="off"
+                  autoCapitalize="characters"
                   spellCheck={false}
-                  className="flex-1 bg-surface-container-highest rounded-xl px-4 py-3.5 text-on-surface font-headline font-bold text-base placeholder:text-on-surface-variant/25 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="flex-1 bg-surface-container-highest rounded-xl px-4 py-3.5 text-on-surface font-headline font-bold text-base uppercase tracking-wider placeholder:text-on-surface-variant/25 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-primary/20"
                   onKeyDown={(e) => e.key === "Enter" && handleGuess()}
                 />
                 <motion.button
