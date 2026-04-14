@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, onSnapshot, updateDoc, setDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const EVENT_ID = "event-default";
@@ -89,9 +89,11 @@ export default function AdminGameLivePage() {
       activeGameId: selectedTemplate,
     });
 
-    // Initialize progress for all teams
+    // Initialize progress for selected teams only
     const teamsSnap = await getDocs(collection(db, "events", EVENT_ID, "teams"));
-    for (const teamDoc of teamsSnap.docs) {
+    const selectedTeamDocs = teamsSnap.docs.filter((d) => selectedTeams.has(d.id));
+
+    for (const teamDoc of selectedTeamDocs) {
       await setDoc(doc(db, "gameProgress", selectedTemplate, "teams", teamDoc.id), {
         score: 0,
         completedWords: 0,
@@ -100,8 +102,8 @@ export default function AdminGameLivePage() {
       });
     }
 
-    // Update leaderboard with team names
-    const leaderboardInit = teamsSnap.docs.map((d, i) => ({
+    // Update leaderboard with selected team names
+    const leaderboardInit = selectedTeamDocs.map((d, i) => ({
       teamId: d.id,
       teamName: d.data().name || d.id,
       score: 0,
@@ -131,19 +133,60 @@ export default function AdminGameLivePage() {
     });
   }
 
+  async function handleReset() {
+    if (!gameId || !confirm("Supprimer cette session de jeu et toutes les progressions ?")) return;
+    // Delete progress for all teams
+    const progressSnap = await getDocs(collection(db, "gameProgress", gameId, "teams"));
+    for (const d of progressSnap.docs) {
+      await deleteDoc(doc(db, "gameProgress", gameId, "teams", d.id));
+    }
+    // Delete game instance
+    await deleteDoc(doc(db, "gameInstances", gameId));
+    // Clear active game
+    await updateDoc(doc(db, "events", EVENT_ID), {
+      activeGameId: null,
+    });
+  }
+
+  const [availableTeams, setAvailableTeams] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set());
+
+  // Load teams for selection
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "events", EVENT_ID, "teams"), (snap) => {
+      const teams = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id }));
+      setAvailableTeams(teams);
+      setSelectedTeams(new Set(teams.map((t) => t.id))); // Select all by default
+    });
+    return unsub;
+  }, []);
+
+  function toggleTeam(teamId: string) {
+    setSelectedTeams((prev) => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  }
+
   // No game active — show start controls
   if (!gameId) {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6">Panneau Live</h1>
 
-        <div className="bg-white/5 border border-white/5 rounded-xl p-8 max-w-md">
+        <div className="bg-white/5 border border-white/5 rounded-xl p-8 max-w-lg">
           <h2 className="text-lg font-bold mb-4">Lancer un jeu</h2>
 
+          {/* Template selection */}
+          <label className="text-xs text-white/30 font-bold uppercase tracking-widest mb-2 block">
+            Template de jeu
+          </label>
           <select
             value={selectedTemplate}
             onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="w-full bg-white/5 rounded-xl px-4 py-3 text-white mb-4 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+            className="w-full bg-white/5 rounded-xl px-4 py-3 text-white mb-6 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
           >
             <option value="">Selectionner un template...</option>
             {templates.map((t) => (
@@ -151,12 +194,56 @@ export default function AdminGameLivePage() {
             ))}
           </select>
 
+          {/* Team selection */}
+          <label className="text-xs text-white/30 font-bold uppercase tracking-widest mb-2 block">
+            Equipes participantes ({selectedTeams.size}/{availableTeams.length})
+          </label>
+          <div className="space-y-2 mb-6 max-h-60 overflow-auto">
+            {availableTeams.map((team) => (
+              <button
+                key={team.id}
+                onClick={() => toggleTeam(team.id)}
+                className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                  selectedTeams.has(team.id)
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                    : "bg-white/5 border border-white/5 text-white/40"
+                }`}
+              >
+                <span className={`material-symbols-outlined text-lg ${
+                  selectedTeams.has(team.id) ? "text-emerald-400" : "text-white/20"
+                }`} style={selectedTeams.has(team.id) ? { fontVariationSettings: "'FILL' 1" } : undefined}>
+                  {selectedTeams.has(team.id) ? "check_circle" : "radio_button_unchecked"}
+                </span>
+                {team.name}
+              </button>
+            ))}
+            {availableTeams.length === 0 && (
+              <p className="text-white/30 text-sm text-center py-4">Aucune equipe creee.</p>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setSelectedTeams(new Set(availableTeams.map((t) => t.id)))}
+              className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-sm hover:bg-white/10"
+            >
+              Tout selectionner
+            </button>
+            <button
+              onClick={() => setSelectedTeams(new Set())}
+              className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-sm hover:bg-white/10"
+            >
+              Tout deselectionner
+            </button>
+          </div>
+
           <button
             onClick={handleStartGame}
-            disabled={!selectedTemplate}
-            className="w-full py-4 rounded-xl bg-emerald-500 text-white font-bold text-lg hover:bg-emerald-400 disabled:opacity-30 transition-colors"
+            disabled={!selectedTemplate || selectedTeams.size === 0}
+            className="w-full py-4 rounded-xl bg-emerald-500 text-white font-bold text-lg hover:bg-emerald-400 disabled:opacity-30 transition-colors mt-6"
           >
-            Lancer le jeu
+            Lancer le jeu ({selectedTeams.size} equipe{selectedTeams.size > 1 ? "s" : ""})
           </button>
         </div>
       </div>
@@ -209,6 +296,13 @@ export default function AdminGameLivePage() {
                 className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 font-bold text-sm hover:bg-red-500/20 transition-colors"
               >
                 Arreter le jeu
+              </button>
+
+              <button
+                onClick={handleReset}
+                className="w-full py-3 rounded-xl bg-red-500/5 text-red-400/60 font-bold text-xs hover:bg-red-500/10 transition-colors"
+              >
+                Supprimer la session
               </button>
             </>
           )}

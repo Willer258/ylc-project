@@ -128,12 +128,23 @@ export default function AdminQRPage() {
             + Creer 10 QR
           </button>
           {slots.length > 0 && (
-            <button
-              onClick={handleDownloadAll}
-              className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold hover:bg-emerald-500/20"
-            >
-              Telecharger tous
-            </button>
+            <>
+              <button
+                onClick={handleDownloadAll}
+                className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold hover:bg-emerald-500/20"
+              >
+                Telecharger tous
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirm(`Supprimer les ${slots.length} QR codes ?`)) return;
+                  for (const s of slots) await deleteDoc(doc(db, "qrSlots", s.id));
+                }}
+                className="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 text-sm font-bold hover:bg-red-500/20"
+              >
+                Tout supprimer
+              </button>
+            </>
           )}
         </div>
       </div>

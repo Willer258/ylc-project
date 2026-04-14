@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const EVENT_ID = "event-default";
@@ -110,6 +110,21 @@ export default function AdminTeamsPage() {
                 title="Copier le lien"
               >
                 <span className="material-symbols-outlined text-lg">content_copy</span>
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirm(`Supprimer l'equipe "${team.name}" ?`)) return;
+                  // Delete members subcollection first
+                  const membersSnap = await getDocs(collection(db, "events", EVENT_ID, "teams", team.id, "members"));
+                  for (const m of membersSnap.docs) {
+                    await deleteDoc(doc(db, "events", EVENT_ID, "teams", team.id, "members", m.id));
+                  }
+                  await deleteDoc(doc(db, "events", EVENT_ID, "teams", team.id));
+                }}
+                className="p-2 rounded-lg bg-white/5 hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
+                title="Supprimer"
+              >
+                <span className="material-symbols-outlined text-lg">delete</span>
               </button>
             </div>
           </div>
