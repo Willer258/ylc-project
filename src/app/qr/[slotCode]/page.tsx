@@ -99,19 +99,47 @@ export default function QRScanPage() {
 
       // Record scan
       if (teamId) {
+        // Mark QR as scanned by this team
         await updateDoc(doc(db, "qrSlots", slotId), {
           scannedBy: arrayUnion({ teamId, userId: uuid, timestamp: new Date().toISOString() }),
         });
 
         // Update team progress — unlock hint
+        const wordKey = `word_${phraseIndex}_${wordIndex}`;
         const progressRef = doc(db, "gameProgress", gameId, "teams", teamId);
         const progressSnap = await getDoc(progressRef);
+
         if (progressSnap.exists()) {
-          const wordKey = `word_${phraseIndex}_${wordIndex}`;
-          const currentHints = progressSnap.data()?.[`slots.${wordKey}.hintsUnlocked`] || [];
-          await updateDoc(progressRef, {
-            [`slots.${wordKey}.hintsUnlocked`]: arrayUnion(hintType),
-            [`slots.${wordKey}.hintsUsed`]: (progressSnap.data()?.slots?.[wordKey]?.hintsUsed || 0) + 1,
+          const currentSlot = progressSnap.data()?.slots?.[wordKey] || {};
+          const currentHintsUnlocked = currentSlot.hintsUnlocked || [];
+          const currentHintsUsed = currentSlot.hintsUsed || 0;
+
+          // Only add if not already unlocked
+          if (!currentHintsUnlocked.includes(hintType)) {
+            await updateDoc(progressRef, {
+              [`slots.${wordKey}`]: {
+                ...currentSlot,
+                status: currentSlot.status || "active",
+                attempts: currentSlot.attempts || 0,
+                hintsUnlocked: [...currentHintsUnlocked, hintType],
+                hintsUsed: currentHintsUsed + 1,
+              },
+            });
+          }
+        } else {
+          // Create progress doc if it doesn't exist
+          const { setDoc } = await import("firebase/firestore");
+          await setDoc(progressRef, {
+            score: 0,
+            completedWords: 0,
+            slots: {
+              [wordKey]: {
+                status: "active",
+                attempts: 0,
+                hintsUnlocked: [hintType],
+                hintsUsed: 1,
+              },
+            },
           });
         }
       }
