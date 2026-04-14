@@ -18,7 +18,7 @@ export function BottomNav() {
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-surface/90 backdrop-blur-xl rounded-t-2xl shadow-[0_-4px_24px_rgba(29,27,25,0.04)]">
+    <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 bg-surface/90 backdrop-blur-xl rounded-t-2xl shadow-[0_-4px_24px_rgba(29,27,25,0.04)]">
       {tabs.map((tab) => {
         const isActive = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
 

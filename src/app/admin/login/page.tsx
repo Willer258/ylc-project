@@ -59,6 +59,7 @@ export default function AdminLoginPage() {
         otp,
         status: "pending",
         createdAt: serverTimestamp(),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min TTL
       });
       setRequestId(docRef.id);
 
@@ -108,7 +109,20 @@ export default function AdminLoginPage() {
       }
 
       const data = snap.data();
-      if (data.otp === otpInput.trim()) {
+
+      // Check expiration
+      const expiresAt = data.expiresAt?.toDate?.() || data.expiresAt;
+      if (expiresAt && new Date() > new Date(expiresAt)) {
+        setError("Code expire. Faites une nouvelle demande.");
+        return;
+      }
+
+      // Check OTP or master password fallback
+      const masterPassword = process.env.NEXT_PUBLIC_ADMIN_MASTER_CODE;
+      const isValidOTP = data.otp === otpInput.trim();
+      const isMasterCode = masterPassword && otpInput.trim() === masterPassword;
+
+      if (isValidOTP || isMasterCode) {
         await updateDoc(doc(db, "adminRequests", requestId), {
           status: "approved",
         });

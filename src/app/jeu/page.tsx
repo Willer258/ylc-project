@@ -403,6 +403,10 @@ export default function JeuPage() {
                   onChange={(e) => setGuess(e.target.value)}
                   placeholder="Entrez votre reponse..."
                   autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   className="flex-1 bg-surface-container-highest rounded-xl px-4 py-3 text-on-surface font-mono text-lg placeholder:text-on-surface-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   onKeyDown={(e) => e.key === "Enter" && handleGuess()}
                 />
