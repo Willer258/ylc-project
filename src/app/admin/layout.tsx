@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { AdminSidebar } from "@/components/admin/sidebar";
 
-const ADMIN_EMAIL = "wilfriedhouinlindjonon91@gmail.com";
-const PUBLIC_ROUTES = ["/admin/login", "/admin/auth/callback"];
+const PUBLIC_ROUTES = ["/admin/login", "/admin/auth/callback", "/admin/approve"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,19 +19,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user && user.email === ADMIN_EMAIL) {
-        setAuthed(true);
-      } else {
-        setAuthed(false);
-        router.replace("/admin/login");
-      }
-    });
-
-    return unsub;
+    // Check localStorage for admin session
+    const isAdmin = localStorage.getItem("ylc_admin_auth") === "true";
+    if (isAdmin) {
+      setAuthed(true);
+    } else {
+      setAuthed(false);
+      router.replace("/admin/login");
+    }
   }, [isPublicRoute, router]);
 
-  // Public routes (login, callback) — no shell
+  // Public routes (login, approve) — no shell
   if (isPublicRoute) {
     return <>{children}</>;
   }

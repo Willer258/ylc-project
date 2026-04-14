@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: "dashboard" },
@@ -20,9 +18,9 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  async function handleLogout() {
-    await signOut(auth);
+  function handleLogout() {
     window.localStorage.removeItem("ylc_admin_auth");
+    window.localStorage.removeItem("ylc_admin_name");
     router.replace("/admin/login");
   }
 
