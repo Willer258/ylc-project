@@ -93,16 +93,11 @@ export async function POST(req: NextRequest) {
     const newAttempts = (currentSlot.attempts || 0) + 1;
 
     if (correct) {
-      // Calculate score
+      // Calculate score — POSITIVE ONLY, no penalties
       const hintsUsed = currentSlot.hintsUsed || 0;
-      let multiplier = 1;
-      if (hintsUsed === 0) multiplier = 2;
-      else if (hintsUsed === 1) multiplier = 1.5;
-      else if (hintsUsed === 2) multiplier = 1.2;
-
-      const penalty = Math.min((newAttempts - 1) * 5, 25);
       const basePoints = 100;
-      const points = Math.max(Math.round(basePoints * multiplier - penalty), 50);
+      const noHintBonus = hintsUsed === 0 ? 50 : 0; // +50 if no hints used
+      const points = basePoints + noHintBonus;
 
       const currentScore = progressSnap.data()?.score || 0;
       const currentCompleted = progressSnap.data()?.completedWords || 0;
