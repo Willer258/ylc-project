@@ -130,6 +130,9 @@ function JeuPage() {
     return unsub;
   }, [gameId, myPhraseIndex]);
 
+  // Store raw progress data to re-apply when phrases load
+  const [rawProgress, setRawProgress] = useState<Record<string, unknown> | null>(null);
+
   // Load team progress (real-time sync)
   useEffect(() => {
     if (!gameId || !teamId) return;
@@ -140,50 +143,59 @@ function JeuPage() {
         const data = snap.data();
         setScore(data.score || 0);
         setCompletedWords(data.completedWords || 0);
-
-        setPhrases((prev) => {
-          let allComplete = true;
-          const updated = prev.map((phrase) => ({
-            ...phrase,
-            words: phrase.words.map((word, wi) => {
-              const key = `word_${word.phraseIndex}_${wi}`;
-              const slot = data.slots?.[key];
-              if (slot?.status === "completed") {
-                return {
-                  ...word,
-                  status: "completed" as const,
-                  value: slot.completedWord || "",
-                  attempts: slot.attempts || 0,
-                  pointsEarned: slot.pointsEarned,
-                  hintsUnlocked: (slot.hintsUnlocked || []).map((type: string) =>
-                    word.hints.find((h) => h.type === type)
-                  ).filter(Boolean) as Hint[],
-                };
-              }
-              allComplete = false;
-              return {
-                ...word,
-                attempts: slot?.attempts || 0,
-                hintsUnlocked: (slot?.hintsUnlocked || []).map((type: string) =>
-                  word.hints.find((h) => h.type === type)
-                ).filter(Boolean) as Hint[],
-              };
-            }),
-          }));
-
-          // Check phrase completion
-          if (allComplete && prev.length > 0 && prev[0].words.length > 0) {
-            const ref = prev[0]?.reference || "";
-            setCompletedReference(ref);
-            setPhraseComplete(true);
-          }
-
-          return updated;
-        });
+        setRawProgress(data);
       }
     );
     return unsub;
   }, [gameId, teamId]);
+
+  // Apply progress to phrases when both are loaded
+  useEffect(() => {
+    if (!rawProgress || phrases.length === 0) return;
+    // Only apply if phrases have hints loaded (not empty shell)
+    if (phrases[0]?.words?.[0]?.hints?.length === undefined) return;
+
+    const data = rawProgress;
+    setPhrases((prev) => {
+      let allComplete = true;
+      const updated = prev.map((phrase) => ({
+        ...phrase,
+        words: phrase.words.map((word, wi) => {
+          const key = `word_${word.phraseIndex}_${wi}`;
+          const slot = (data.slots as Record<string, Record<string, unknown>>)?.[key];
+          if (slot?.status === "completed") {
+            return {
+              ...word,
+              status: "completed" as const,
+              value: (slot.completedWord as string) || "",
+              attempts: (slot.attempts as number) || 0,
+              pointsEarned: slot.pointsEarned as number,
+              hintsUnlocked: ((slot.hintsUnlocked as string[]) || []).map((type: string) =>
+                word.hints.find((h) => h.type === type)
+              ).filter(Boolean) as Hint[],
+            };
+          }
+          allComplete = false;
+          return {
+            ...word,
+            attempts: (slot?.attempts as number) || 0,
+            hintsUnlocked: ((slot?.hintsUnlocked as string[]) || []).map((type: string) =>
+              word.hints.find((h) => h.type === type)
+            ).filter(Boolean) as Hint[],
+          };
+        }),
+      }));
+
+      // Check phrase completion
+      if (allComplete && prev.length > 0 && prev[0].words.length > 0) {
+        const ref = prev[0]?.reference || "";
+        setCompletedReference(ref);
+        setPhraseComplete(true);
+      }
+
+      return updated;
+    });
+  }, [rawProgress, phrases.length]);
 
   // Auto-select word from QR redirect (highlight param)
   useEffect(() => {
