@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthContext } from "@/components/auth-provider";
+import { useSearchParams } from "next/navigation";
 import { QrScanner } from "@/components/qr-scanner";
 import { HINT_LABELS, HINT_ICONS, type Hint } from "@/lib/game-types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,9 +37,23 @@ interface LeaderboardEntry {
   rank: number;
 }
 
-export default function JeuPage() {
+export default function JeuPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    }>
+      <JeuPage />
+    </Suspense>
+  );
+}
+
+function JeuPage() {
   const { uuid, teamId, userName } = useAuthContext();
+  const searchParams = useSearchParams();
   const [gameId, setGameId] = useState<string | null>(null);
+  const [highlightApplied, setHighlightApplied] = useState(false);
   const [gameStatus, setGameStatus] = useState<string>("nogame");
   const [phrases, setPhrases] = useState<PhraseState[]>([]);
   const [score, setScore] = useState(0);
@@ -169,6 +184,26 @@ export default function JeuPage() {
     );
     return unsub;
   }, [gameId, teamId]);
+
+  // Auto-select word from QR redirect (highlight param)
+  useEffect(() => {
+    if (highlightApplied || phrases.length === 0) return;
+    const highlight = searchParams.get("highlight");
+    if (!highlight) return;
+
+    const [pi, wi] = highlight.split("_").map(Number);
+    if (isNaN(pi) || isNaN(wi)) return;
+
+    // Find the word in phrases
+    for (const phrase of phrases) {
+      const word = phrase.words.find((w) => w.phraseIndex === pi && w.index === wi);
+      if (word && word.status !== "completed") {
+        setSelectedWord(word);
+        setHighlightApplied(true);
+        break;
+      }
+    }
+  }, [phrases, searchParams, highlightApplied]);
 
   // Submit guess
   const handleGuess = useCallback(async () => {

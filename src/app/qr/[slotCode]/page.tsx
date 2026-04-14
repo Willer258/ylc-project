@@ -16,6 +16,7 @@ export default function QRScanPage() {
 
   const [status, setStatus] = useState<"loading" | "hint" | "already" | "error">("loading");
   const [hint, setHint] = useState<Hint | null>(null);
+  const [targetWord, setTargetWord] = useState<string>("");
   const [wordValue, setWordValue] = useState("");
   const [error, setError] = useState("");
 
@@ -146,7 +147,13 @@ export default function QRScanPage() {
 
       setHint(matchedHint);
       setWordValue(word.value);
+      setTargetWord(`${phraseIndex}_${wordIndex}`);
       setStatus("hint");
+
+      // Auto-redirect to game after 3 seconds, with word target
+      setTimeout(() => {
+        window.location.href = `/jeu?highlight=${phraseIndex}_${wordIndex}`;
+      }, 3000);
     }
 
     processQR();
@@ -170,7 +177,7 @@ export default function QRScanPage() {
           <span className="material-symbols-outlined text-5xl text-error block">error</span>
           <p className="text-on-surface font-bold text-lg">{error}</p>
           <button
-            onClick={() => router.push("/jeu")}
+            onClick={() => router.push(`/jeu?highlight=${targetWord}`)}
             className="px-6 py-3 rounded-full gradient-cta text-on-primary font-bold"
           >
             Retour au jeu
@@ -188,7 +195,7 @@ export default function QRScanPage() {
           <p className="text-on-surface font-bold text-lg">Deja scanne !</p>
           <p className="text-on-surface-variant">Votre equipe a deja utilise ce QR code.</p>
           <button
-            onClick={() => router.push("/jeu")}
+            onClick={() => router.push(`/jeu?highlight=${targetWord}`)}
             className="px-6 py-3 rounded-full gradient-cta text-on-primary font-bold"
           >
             Retour au jeu
@@ -228,7 +235,7 @@ export default function QRScanPage() {
         <HintDisplay hint={hint!} />
 
         <button
-          onClick={() => router.push("/jeu")}
+          onClick={() => router.push(`/jeu?highlight=${targetWord}`)}
           className="w-full py-4 rounded-full gradient-cta text-on-primary font-bold text-lg"
         >
           Retour au jeu
