@@ -495,125 +495,153 @@ function JeuPage() {
               </span>
             </div>
 
-            {/* Word tiles */}
-            <div className="flex flex-wrap gap-2">
+            {/* Word tiles + inline hints */}
+            <div className="space-y-3">
               {phrase.words.map((word, wi) => {
                 const isCompleted = word.status === "completed";
-                const isSelected = selectedWord?.phraseIndex === pi && selectedWord?.index === wi;
+                const isSelected = selectedWord?.phraseIndex === word.phraseIndex && selectedWord?.index === wi;
                 const hasHints = word.hintsUnlocked.length > 0;
 
                 return (
-                  <motion.button
-                    key={wi}
-                    onClick={() => {
-                      if (!isCompleted) {
-                        setSelectedWord(word);
-                        setGuess("");
-                        setFeedback(null);
-                      }
-                    }}
-                    disabled={isCompleted}
-                    className={`relative rounded-xl px-1 py-2 transition-all ${
-                      isCompleted
-                        ? "bg-secondary/10"
-                        : isSelected
-                        ? "bg-primary/10 ring-2 ring-primary/40"
-                        : "bg-surface-container-highest/60 hover:bg-surface-container-highest"
-                    }`}
-                    whileTap={!isCompleted ? { scale: 0.95 } : {}}
-                    layout
-                  >
-                    {/* Hint indicator */}
-                    {hasHints && !isCompleted && (
-                      <motion.span
-                        className="absolute -top-1.5 -right-1.5 text-xs"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring" }}
-                      >
-                        💡
-                      </motion.span>
-                    )}
-
-                    {isCompleted ? (
-                      <motion.span
-                        className="font-headline font-bold text-secondary text-sm px-2"
-                        initial={{ opacity: 0, scale: 0.5, rotateX: 90 }}
-                        animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      >
-                        {word.value}
-                      </motion.span>
-                    ) : (
-                      <span className="flex gap-[3px] px-1">
-                        {Array.from({ length: word.letterCount }).map((_, li) => (
-                          <motion.span
-                            key={li}
-                            className={`w-[18px] h-[22px] rounded-sm flex items-center justify-center text-[10px] font-mono ${
-                              isSelected
-                                ? "bg-primary/20 text-primary"
-                                : "bg-surface-container text-on-surface-variant/30"
-                            }`}
-                            initial={false}
-                            animate={isSelected ? { y: [0, -2, 0] } : {}}
-                            transition={{ delay: li * 0.03, duration: 0.3 }}
-                          >
-                            _
-                          </motion.span>
-                        ))}
+                  <motion.div key={wi} layout>
+                    {/* Word tile */}
+                    <motion.button
+                      onClick={() => {
+                        if (!isCompleted) {
+                          setSelectedWord(word);
+                          setGuess("");
+                          setFeedback(null);
+                        }
+                      }}
+                      disabled={isCompleted}
+                      className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 transition-all text-left ${
+                        isCompleted
+                          ? "bg-secondary/10"
+                          : isSelected
+                          ? "bg-primary/10 ring-2 ring-primary/40"
+                          : "bg-surface-container-highest/40 hover:bg-surface-container-highest/70"
+                      }`}
+                      whileTap={!isCompleted ? { scale: 0.98 } : {}}
+                    >
+                      {/* Word number */}
+                      <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                        isCompleted
+                          ? "bg-secondary text-on-secondary"
+                          : isSelected
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container text-on-surface-variant/40"
+                      }`}>
+                        {isCompleted ? "✓" : wi + 1}
                       </span>
-                    )}
 
-                    {/* Points earned */}
-                    {isCompleted && word.pointsEarned && (
-                      <motion.span
-                        className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-secondary font-bold whitespace-nowrap"
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                      >
-                        +{word.pointsEarned}
-                      </motion.span>
-                    )}
-                  </motion.button>
+                      {/* Word content */}
+                      <div className="flex-1 min-w-0">
+                        {isCompleted ? (
+                          <motion.span
+                            className="font-headline font-bold text-secondary text-base"
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                          >
+                            {word.value}
+                          </motion.span>
+                        ) : (
+                          <span className="flex gap-[3px]">
+                            {Array.from({ length: word.letterCount }).map((_, li) => (
+                              <motion.span
+                                key={li}
+                                className={`w-5 h-6 rounded-sm flex items-center justify-center text-[11px] font-mono ${
+                                  isSelected
+                                    ? "bg-primary/20 text-primary"
+                                    : "bg-surface-container text-on-surface-variant/30"
+                                }`}
+                                initial={false}
+                                animate={isSelected ? { y: [0, -2, 0] } : {}}
+                                transition={{ delay: li * 0.03, duration: 0.3 }}
+                              >
+                                _
+                              </motion.span>
+                            ))}
+                            <span className="text-xs text-on-surface-variant/30 ml-2 self-center">
+                              {word.letterCount} lettres
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Hint badge */}
+                      {hasHints && !isCompleted && (
+                        <span className="shrink-0 bg-amber-500/10 text-amber-500 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                          💡 {word.hintsUnlocked.length}
+                        </span>
+                      )}
+
+                      {/* Points */}
+                      {isCompleted && word.pointsEarned && (
+                        <span className="shrink-0 text-xs text-secondary font-bold">
+                          +{word.pointsEarned} pts
+                        </span>
+                      )}
+                    </motion.button>
+
+                    {/* Inline hints display — shown directly under the word */}
+                    <AnimatePresence>
+                      {hasHints && !isCompleted && (
+                        <motion.div
+                          className="ml-9 mt-1 space-y-1"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                        >
+                          {word.hintsUnlocked.map((hint, hi) => (
+                            <motion.div
+                              key={hi}
+                              className="bg-amber-500/5 rounded-lg px-3 py-2 flex items-start gap-2"
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: hi * 0.1 }}
+                            >
+                              <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5 shrink-0">
+                                {HINT_ICONS[hint.type]}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-amber-500/60 font-bold uppercase tracking-widest">
+                                  {HINT_LABELS[hint.type]}
+                                </span>
+                                {/* Show hint content inline */}
+                                {hint.type === "anagram" && (
+                                  <p className="font-mono font-bold text-sm text-on-surface tracking-widest mt-0.5">
+                                    {hint.content.scrambled}
+                                  </p>
+                                )}
+                                {hint.type === "phrase" && (
+                                  <p className="text-xs text-on-surface-variant italic mt-0.5">
+                                    &ldquo;{hint.content.text}&rdquo;
+                                  </p>
+                                )}
+                                {hint.type === "emoji" && hint.content.emojis && (
+                                  <p className="text-lg mt-0.5">
+                                    {hint.content.emojis.join(" ")}
+                                  </p>
+                                )}
+                                {hint.type === "4images" && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setShowHint(hint); }}
+                                    className="text-xs text-amber-500 font-bold mt-0.5 underline"
+                                  >
+                                    Voir les 4 images
+                                  </button>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
                 );
               })}
             </div>
-
-            {/* Unlocked hints for selected word */}
-            <AnimatePresence>
-              {selectedWord && selectedWord.phraseIndex === pi && selectedWord.hintsUnlocked.length > 0 && (
-                <motion.div
-                  className="mt-4 space-y-2"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <p className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-widest">
-                    Indices debloques
-                  </p>
-                  {selectedWord.hintsUnlocked.map((hint, hi) => (
-                    <motion.button
-                      key={hi}
-                      onClick={() => setShowHint(hint)}
-                      className="w-full flex items-center gap-3 bg-primary/5 rounded-xl px-4 py-3 text-left hover:bg-primary/10 transition-colors"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: hi * 0.1 }}
-                    >
-                      <span className="material-symbols-outlined text-primary text-lg">
-                        {HINT_ICONS[hint.type]}
-                      </span>
-                      <span className="text-sm text-on-surface-variant font-medium">
-                        {HINT_LABELS[hint.type]}
-                      </span>
-                      <span className="material-symbols-outlined text-on-surface-variant/30 ml-auto text-lg">
-                        chevron_right
-                      </span>
-                    </motion.button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
         ))}
       </div>
@@ -675,6 +703,45 @@ function JeuPage() {
                   <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
+
+              {/* Hints in bottom sheet */}
+              {selectedWord.hintsUnlocked.length > 0 && (
+                <div className="mb-3 space-y-1.5">
+                  {selectedWord.hintsUnlocked.map((hint, hi) => (
+                    <div key={hi} className="bg-amber-500/5 rounded-lg px-3 py-2 flex items-start gap-2">
+                      <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5 shrink-0">
+                        {HINT_ICONS[hint.type]}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9px] text-amber-500/50 font-bold uppercase tracking-widest">
+                          {HINT_LABELS[hint.type]}
+                        </span>
+                        {hint.type === "anagram" && (
+                          <p className="font-mono font-bold text-sm text-on-surface tracking-widest">
+                            {hint.content.scrambled}
+                          </p>
+                        )}
+                        {hint.type === "phrase" && (
+                          <p className="text-xs text-on-surface-variant italic">
+                            &ldquo;{hint.content.text}&rdquo;
+                          </p>
+                        )}
+                        {hint.type === "emoji" && hint.content.emojis && (
+                          <p className="text-base">{hint.content.emojis.join(" ")}</p>
+                        )}
+                        {hint.type === "4images" && (
+                          <button
+                            onClick={() => setShowHint(hint)}
+                            className="text-xs text-amber-500 font-bold underline"
+                          >
+                            Voir les images
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Input + button */}
               <motion.div
