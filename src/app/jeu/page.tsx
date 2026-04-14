@@ -67,44 +67,53 @@ export default function JeuPage() {
     return unsub;
   }, []);
 
-  // Load game instance (status + leaderboard)
+  const [myPhraseIndex, setMyPhraseIndex] = useState<number | null>(null);
+
+  // Load game instance (status + leaderboard + team phrase assignment)
   useEffect(() => {
     if (!gameId) return;
     const unsub = onSnapshot(doc(db, "gameInstances", gameId), (snap) => {
       if (snap.exists()) {
         setGameStatus(snap.data().status || "waiting");
         setLeaderboard(snap.data().leaderboard || []);
+        // Get this team's assigned phrase index
+        const teamPhrases = snap.data().teamPhrases || {};
+        if (teamId && teamPhrases[teamId] != null) {
+          setMyPhraseIndex(teamPhrases[teamId]);
+        }
       }
     });
     return unsub;
-  }, [gameId]);
+  }, [gameId, teamId]);
 
-  // Load template (phrases + words structure)
+  // Load template — only the phrase assigned to this team
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || myPhraseIndex === null) return;
     const unsub = onSnapshot(doc(db, "gameTemplates", gameId), (snap) => {
       if (snap.exists()) {
         const rawPhrases = snap.data().phrases || [];
-        setPhrases(
-          rawPhrases.map((p: Record<string, unknown>, pi: number) => ({
-            text: p.text as string,
-            reference: p.reference as string || "",
-            words: ((p.words as Array<Record<string, unknown>>) || []).map((w, wi: number) => ({
-              index: wi,
-              phraseIndex: pi,
-              letterCount: (w.letterCount as number) || (w.value as string)?.length || 0,
-              status: "hidden" as const,
-              value: "",
-              attempts: 0,
-              hints: ((w.hints as Hint[]) || []),
-              hintsUnlocked: [],
-            })),
-          }))
-        );
+        const pi = myPhraseIndex;
+        const p = rawPhrases[pi];
+        if (!p) return;
+
+        setPhrases([{
+          text: p.text as string,
+          reference: p.reference as string || "",
+          words: ((p.words as Array<Record<string, unknown>>) || []).map((w, wi: number) => ({
+            index: wi,
+            phraseIndex: pi,
+            letterCount: (w.letterCount as number) || (w.value as string)?.length || 0,
+            status: "hidden" as const,
+            value: "",
+            attempts: 0,
+            hints: ((w.hints as Hint[]) || []),
+            hintsUnlocked: [],
+          })),
+        }]);
       }
     });
     return unsub;
-  }, [gameId]);
+  }, [gameId, myPhraseIndex]);
 
   // Load team progress (real-time sync)
   useEffect(() => {
@@ -119,10 +128,10 @@ export default function JeuPage() {
 
         setPhrases((prev) => {
           let allComplete = true;
-          const updated = prev.map((phrase, pi) => ({
+          const updated = prev.map((phrase) => ({
             ...phrase,
             words: phrase.words.map((word, wi) => {
-              const key = `word_${pi}_${wi}`;
+              const key = `word_${word.phraseIndex}_${wi}`;
               const slot = data.slots?.[key];
               if (slot?.status === "completed") {
                 return {
