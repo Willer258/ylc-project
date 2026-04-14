@@ -65,19 +65,23 @@ export default function AdminLoginPage() {
       // Send email to admin via EmailJS
       if (EMAILJS_SERVICE && EMAILJS_TEMPLATE && EMAILJS_KEY) {
         try {
-          await emailjs.send(
+          console.log("EmailJS config:", { service: EMAILJS_SERVICE, template: EMAILJS_TEMPLATE, key: EMAILJS_KEY ? "set" : "MISSING" });
+          const result = await emailjs.send(
             EMAILJS_SERVICE,
             EMAILJS_TEMPLATE,
             {
+              email: "wilfriedhouinlindjonon91@gmail.com",
               requester_name: name.trim(),
               otp_code: otp,
               time: now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
             },
-            EMAILJS_KEY
+            { publicKey: EMAILJS_KEY }
           );
+          console.log("EmailJS success:", result);
           setEmailSent(true);
-        } catch (emailErr) {
-          console.error("EmailJS error:", emailErr);
+        } catch (emailErr: unknown) {
+          const errMsg = emailErr instanceof Error ? emailErr.message : JSON.stringify(emailErr);
+          console.error("EmailJS error detail:", errMsg, emailErr);
           // Continue even if email fails — OTP is in Firestore
         }
       }
