@@ -2,10 +2,6 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuthContext } from "@/components/auth-provider";
-import { setTeamId as storeTeamId, setEventId } from "@/lib/auth";
 import { motion } from "framer-motion";
 
 const EVENT_ID = "event-default";
@@ -14,33 +10,39 @@ export default function JoinTeamPage() {
   const params = useParams();
   const router = useRouter();
   const teamId = params.teamId as string;
-  const { uuid, userName, isOnboarded, isReady, setUserName, setTeamId, teamId: existingTeamId } = useAuthContext();
 
-  const [name, setName] = useState(userName || "");
+  const [name, setName] = useState("");
   const [teamName, setTeamName] = useState<string | null>(null);
   const [teamFull, setTeamFull] = useState(false);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
-  // If already in a team, redirect to home
+  // Check if already logged in
   useEffect(() => {
-    if (isReady && existingTeamId) {
+    if (typeof window === "undefined") return;
+    const existingTeam = localStorage.getItem("ylc_team_id");
+    if (existingTeam) {
       router.replace("/");
+      return;
     }
-  }, [isReady, existingTeamId, router]);
+    setReady(true);
+  }, [router]);
 
   // Load team info
   useEffect(() => {
+    if (!ready || !teamId) return;
+
     async function loadTeam() {
       try {
+        const { doc, getDoc, getDocs, collection } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
         const teamDoc = await getDoc(doc(db, "events", EVENT_ID, "teams", teamId));
         if (teamDoc.exists()) {
           const data = teamDoc.data();
           setTeamName(data.name);
-
-          // Check member count
-          const { getDocs, collection } = await import("firebase/firestore");
           const membersSnap = await getDocs(
             collection(db, "events", EVENT_ID, "teams", teamId, "members")
           );
@@ -58,8 +60,8 @@ export default function JoinTeamPage() {
       }
     }
 
-    if (teamId) loadTeam();
-  }, [teamId]);
+    loadTeam();
+  }, [ready, teamId]);
 
   async function handleJoin(e: FormEvent) {
     e.preventDefault();
@@ -70,7 +72,13 @@ export default function JoinTeamPage() {
     setError(null);
 
     try {
-      // Save member in event members
+      const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      const { getDeviceUUID, setUserName, setTeamId, setEventId } = await import("@/lib/auth");
+
+      const uuid = getDeviceUUID();
+
+      // Save member in event
       await setDoc(
         doc(db, "events", EVENT_ID, "members", uuid),
         { name: trimmedName, deviceUUID: uuid, joinedAt: serverTimestamp() },
@@ -83,13 +91,12 @@ export default function JoinTeamPage() {
         { name: trimmedName, deviceUUID: uuid, joinedAt: serverTimestamp(), captainVote: null }
       );
 
-      // Update local state
+      // Store locally
       setUserName(trimmedName);
-      storeTeamId(teamId);
-      setEventId(EVENT_ID);
       setTeamId(teamId);
+      setEventId(EVENT_ID);
 
-      // Redirect to home
+      // Redirect
       router.replace("/");
     } catch (err) {
       console.error("Join error:", err);
@@ -98,7 +105,9 @@ export default function JoinTeamPage() {
     }
   }
 
-  if (!isReady || loading) {
+  if (!ready) return null;
+
+  if (loading) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-background">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -106,19 +115,25 @@ export default function JoinTeamPage() {
     );
   }
 
+  if (error && !teamName) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-background">
+        <div className="text-center space-y-4 max-w-sm">
+          <span className="material-symbols-outlined text-5xl text-error/40 block">error</span>
+          <p className="text-on-surface font-bold text-lg">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (teamFull) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-background">
-        <div className="w-full max-w-sm text-center space-y-6">
-          <span className="material-symbols-outlined text-6xl text-error/40 block">
-            group_off
-          </span>
-          <h1 className="font-headline text-2xl font-extrabold text-on-surface">
-            Equipe complete
-          </h1>
+        <div className="text-center space-y-4 max-w-sm">
+          <span className="material-symbols-outlined text-5xl text-error/40 block">group_off</span>
+          <h1 className="font-headline text-2xl font-extrabold text-on-surface">Equipe complete</h1>
           <p className="text-on-surface-variant">
             L&apos;equipe <strong>{teamName}</strong> est deja au complet.
-            Demandez un autre lien a votre animateur.
           </p>
         </div>
       </div>
@@ -133,7 +148,6 @@ export default function JoinTeamPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Header */}
         <div className="text-center space-y-3">
           <motion.div
             className="inline-flex items-center gap-2 bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full text-sm font-bold"
@@ -148,23 +162,17 @@ export default function JoinTeamPage() {
             Rejoins l&apos;aventure
           </h1>
           <p className="text-on-surface-variant text-base">
-            Entre ton prenom pour rejoindre l&apos;equipe
+            Entre ton prenom pour rejoindre
             {teamName && <strong> {teamName}</strong>}.
           </p>
         </div>
 
-        {/* Error */}
         {error && (
-          <motion.div
-            className="bg-error-container text-on-error-container px-4 py-3 rounded-xl text-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
+          <div className="bg-error-container text-on-error-container px-4 py-3 rounded-xl text-sm">
             {error}
-          </motion.div>
+          </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleJoin} className="space-y-5">
           <input
             type="text"
@@ -179,18 +187,11 @@ export default function JoinTeamPage() {
           <motion.button
             type="submit"
             disabled={!name.trim() || joining}
-            className="w-full py-4 rounded-full gradient-cta text-on-primary font-bold text-lg disabled:opacity-50 disabled:pointer-events-none"
+            className="w-full py-4 rounded-full gradient-cta text-on-primary font-bold text-lg disabled:opacity-50"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            {joining ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                Inscription...
-              </span>
-            ) : (
-              "Rejoindre"
-            )}
+            {joining ? "Inscription..." : "Rejoindre"}
           </motion.button>
         </form>
       </motion.div>
