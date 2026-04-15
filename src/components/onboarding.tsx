@@ -42,7 +42,7 @@ export function Onboarding() {
         {/* Logo / Title */}
         <div className="text-center space-y-3">
           <h1 className="font-headline text-4xl font-extrabold text-primary tracking-tight">
-            Young Christian Life
+            Young Christian Lifestyle
           </h1>
           <p className="text-on-surface-variant text-lg">
             Bienvenue ! Entre ton prenom pour rejoindre l&apos;aventure.

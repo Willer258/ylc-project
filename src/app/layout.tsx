@@ -18,7 +18,7 @@ const beVietnam = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "Young Christian Life (YCL)",
+  title: "Young Christian Lifestyle",
   description: "Application evenementielle chretienne — chasse au tresor et aventure",
 };
 

@@ -65,7 +65,7 @@ function NeedInviteLink() {
           qr_code_2
         </span>
         <h1 className="font-headline text-3xl font-extrabold text-primary tracking-tight">
-          Young Christian Life
+          Young Christian Lifestyle
         </h1>
         <p className="text-on-surface-variant text-lg leading-relaxed">
           Scannez le QR code de votre equipe ou utilisez le lien
