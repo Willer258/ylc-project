@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
 
   // Check if already authed
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("ylc_admin_auth") === "true") {
+    if (typeof window !== "undefined" && localStorage.getItem("ycl_admin_auth") === "true") {
       router.replace("/admin");
     }
   }, [router]);
@@ -36,8 +36,8 @@ export default function AdminLoginPage() {
     if (!requestId) return;
     const unsub = onSnapshot(doc(db, "adminRequests", requestId), (snap) => {
       if (snap.exists() && snap.data().status === "approved") {
-        localStorage.setItem("ylc_admin_auth", "true");
-        localStorage.setItem("ylc_admin_name", snap.data().name || "Admin");
+        localStorage.setItem("ycl_admin_auth", "true");
+        localStorage.setItem("ycl_admin_name", snap.data().name || "Admin");
         router.replace("/admin");
       }
     });
@@ -126,8 +126,8 @@ export default function AdminLoginPage() {
         await updateDoc(doc(db, "adminRequests", requestId), {
           status: "approved",
         });
-        localStorage.setItem("ylc_admin_auth", "true");
-        localStorage.setItem("ylc_admin_name", data.name || "Admin");
+        localStorage.setItem("ycl_admin_auth", "true");
+        localStorage.setItem("ycl_admin_name", data.name || "Admin");
         router.replace("/admin");
       } else {
         setError("Code incorrect. Verifiez aupres de l'administrateur.");
@@ -143,7 +143,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-3">
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            YLC Admin
+            YCL Admin
           </h1>
           <p className="text-white/50 text-sm">
             Panneau d&apos;administration

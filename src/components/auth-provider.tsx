@@ -6,6 +6,7 @@ import { useAuth, type AuthState } from "@/hooks/use-auth";
 interface AuthContextValue extends AuthState {
   setUserName: (name: string) => void;
   setTeamId: (teamId: string) => void;
+  clearTeamId: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

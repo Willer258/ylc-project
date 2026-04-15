@@ -242,7 +242,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           <div className="space-y-4">
             <div className="inline-block px-3 py-1.5 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold tracking-widest uppercase">
-              L&apos;Esprit YLC
+              L&apos;Esprit YCL
             </div>
             <h3 className="font-headline text-2xl font-bold text-primary leading-tight">
               Une immersion totale entre ciel et terre.

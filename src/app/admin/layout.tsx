@@ -20,7 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     // Check localStorage for admin session
-    const isAdmin = localStorage.getItem("ylc_admin_auth") === "true";
+    const isAdmin = localStorage.getItem("ycl_admin_auth") === "true";
     if (isAdmin) {
       setAuthed(true);
     } else {

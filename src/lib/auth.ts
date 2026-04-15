@@ -1,9 +1,9 @@
 "use client";
 
-const UUID_KEY = "ylc_device_uuid";
-const NAME_KEY = "ylc_user_name";
-const TEAM_KEY = "ylc_team_id";
-const EVENT_KEY = "ylc_event_id";
+const UUID_KEY = "ycl_device_uuid";
+const NAME_KEY = "ycl_user_name";
+const TEAM_KEY = "ycl_team_id";
+const EVENT_KEY = "ycl_event_id";
 
 export function getDeviceUUID(): string {
   if (typeof window === "undefined") return "";
@@ -45,6 +45,10 @@ export function setEventId(eventId: string): void {
 
 export function isAuthenticated(): boolean {
   return !!getUserName() && !!getDeviceUUID();
+}
+
+export function clearTeamId(): void {
+  localStorage.removeItem(TEAM_KEY);
 }
 
 export function clearAuth(): void {

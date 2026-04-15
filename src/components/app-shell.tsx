@@ -1,9 +1,32 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { AuthProvider, useAuthContext } from "@/components/auth-provider";
 import { BottomNav } from "@/components/bottom-nav";
+
+const EVENT_ID = "event-default";
+
+function MembershipGuard() {
+  const { uuid, teamId, clearTeamId } = useAuthContext();
+
+  useEffect(() => {
+    if (!teamId || !uuid) return;
+    // Listen to this user's member doc in their team
+    const memberRef = doc(db, "events", EVENT_ID, "teams", teamId, "members", uuid);
+    const unsub = onSnapshot(memberRef, (snap) => {
+      if (!snap.exists()) {
+        // Member was removed → clear team
+        clearTeamId();
+      }
+    });
+    return unsub;
+  }, [teamId, uuid, clearTeamId]);
+
+  return null;
+}
 
 function AuthGate({ children }: { children: ReactNode }) {
   const { isOnboarded, teamId } = useAuthContext();
@@ -24,9 +47,10 @@ function AuthGate({ children }: { children: ReactNode }) {
     return <NeedInviteLink />;
   }
 
-  // All set — show the app
+  // All set — show the app with membership guard
   return (
     <>
+      <MembershipGuard />
       <main className="pb-24">{children}</main>
       <BottomNav />
     </>

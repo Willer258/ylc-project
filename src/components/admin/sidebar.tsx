@@ -21,8 +21,8 @@ export function AdminSidebar() {
   const router = useRouter();
 
   function handleLogout() {
-    window.localStorage.removeItem("ylc_admin_auth");
-    window.localStorage.removeItem("ylc_admin_name");
+    window.localStorage.removeItem("ycl_admin_auth");
+    window.localStorage.removeItem("ycl_admin_name");
     router.replace("/admin/login");
   }
 
@@ -31,7 +31,7 @@ export function AdminSidebar() {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/5">
         <h1 className="text-lg font-extrabold text-amber-400 tracking-tight">
-          YLC Admin
+          YCL Admin
         </h1>
       </div>
 

@@ -7,6 +7,7 @@ import {
   setUserName as storeUserName,
   getTeamId,
   setTeamId as storeTeamId,
+  clearTeamId as clearStoredTeamId,
   getEventId,
   isAuthenticated,
 } from "@/lib/auth";
@@ -56,5 +57,10 @@ export function useAuth() {
     setState((prev) => ({ ...prev, teamId }));
   }, []);
 
-  return { ...state, setUserName, setTeamId };
+  const clearTeamId = useCallback(() => {
+    clearStoredTeamId();
+    setState((prev) => ({ ...prev, teamId: null }));
+  }, []);
+
+  return { ...state, setUserName, setTeamId, clearTeamId };
 }

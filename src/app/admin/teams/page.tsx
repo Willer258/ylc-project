@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, addDoc, deleteDoc, doc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import QRCode from "qrcode";
 
 const EVENT_ID = "event-default";
 
@@ -16,7 +17,6 @@ interface Member {
 interface Team {
   id: string;
   name: string;
-  maxSize: number;
   memberCount: number;
 }
 
@@ -27,6 +27,8 @@ export default function AdminTeamsPage() {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [qrTeamId, setQrTeamId] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "events", EVENT_ID, "teams"), async (snap) => {
@@ -37,7 +39,6 @@ export default function AdminTeamsPage() {
         teamsData.push({
           id: d.id,
           name: d.data().name,
-          maxSize: d.data().maxSize || 5,
           memberCount: membersSnap.size,
         });
       }
@@ -88,7 +89,6 @@ export default function AdminTeamsPage() {
     try {
       await addDoc(collection(db, "events", EVENT_ID, "teams"), {
         name: newTeamName.trim(),
-        maxSize: 5,
         captainId: null,
         captainVoteOpen: false,
         assignedPhraseId: null,
@@ -109,7 +109,30 @@ export default function AdminTeamsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Equipes</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Equipes</h1>
+        {teams.length > 0 && (
+          <button
+            onClick={() => setQrTeamId(qrTeamId === "all" ? null : "all")}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              qrTeamId === "all"
+                ? "bg-amber-500 text-black"
+                : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+            }`}
+          >
+            {qrTeamId === "all" ? "Masquer les QR" : "Afficher tous les QR"}
+          </button>
+        )}
+      </div>
+
+      {/* All QR codes grid */}
+      {qrTeamId === "all" && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+          {teams.map((team) => (
+            <TeamQRCard key={team.id} teamId={team.id} teamName={team.name} baseUrl={baseUrl} />
+          ))}
+        </div>
+      )}
 
       {/* Create team */}
       <div className="flex gap-3 mb-8">
@@ -154,17 +177,32 @@ export default function AdminTeamsPage() {
                 <div>
                   <h3 className="font-bold text-white">{team.name}</h3>
                   <p className="text-sm text-white/40 mt-1">
-                    {team.memberCount} / {team.maxSize} membres
+                    {team.memberCount} membre{team.memberCount !== 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-xs text-white/30 mb-1">Lien d&apos;invitation</p>
-                  <code className="text-xs text-amber-400/80 bg-amber-400/5 px-2 py-1 rounded">
-                    {baseUrl}/join/{team.id}
-                  </code>
-                </div>
+                <button
+                  onClick={async () => {
+                    if (qrTeamId === team.id) {
+                      setQrTeamId(null);
+                      setQrDataUrl(null);
+                    } else {
+                      const url = `${baseUrl}/join/${team.id}`;
+                      const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
+                      setQrTeamId(team.id);
+                      setQrDataUrl(dataUrl);
+                    }
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${
+                    qrTeamId === team.id
+                      ? "bg-amber-500/20 text-amber-400"
+                      : "bg-white/5 hover:bg-white/10 text-white/40 hover:text-white/70"
+                  }`}
+                  title="Afficher le QR code"
+                >
+                  <span className="material-symbols-outlined text-lg">qr_code</span>
+                </button>
                 <button
                   onClick={() => navigator.clipboard.writeText(`${baseUrl}/join/${team.id}`)}
                   className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
@@ -227,6 +265,25 @@ export default function AdminTeamsPage() {
                 )}
               </div>
             )}
+
+            {/* QR code panel */}
+            {qrTeamId === team.id && qrDataUrl && (
+              <div className="border-t border-white/5 bg-white/[0.02] px-5 py-6 flex flex-col items-center gap-3">
+                <img src={qrDataUrl} alt={`QR ${team.name}`} className="w-48 h-48 rounded-xl" />
+                <p className="text-xs text-white/40">{baseUrl}/join/{team.id}</p>
+                <button
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = qrDataUrl;
+                    a.download = `equipe-${team.name.replace(/\s+/g, "-").toLowerCase()}.png`;
+                    a.click();
+                  }}
+                  className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-sm font-bold hover:bg-white/10 transition-colors"
+                >
+                  Telecharger
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
@@ -236,6 +293,38 @@ export default function AdminTeamsPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// === Team QR Card (for grid view) ===
+function TeamQRCard({ teamId, teamName, baseUrl }: { teamId: string; teamName: string; baseUrl: string }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    QRCode.toDataURL(`${baseUrl}/join/${teamId}`, { width: 250, margin: 2 }).then(setDataUrl);
+  }, [teamId, baseUrl]);
+
+  return (
+    <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col items-center gap-3">
+      {dataUrl ? (
+        <img src={dataUrl} alt={`QR ${teamName}`} className="w-full aspect-square rounded-lg" />
+      ) : (
+        <div className="w-full aspect-square rounded-lg bg-white/5 animate-pulse" />
+      )}
+      <p className="text-sm font-bold text-white text-center">{teamName}</p>
+      <button
+        onClick={() => {
+          if (!dataUrl) return;
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = `equipe-${teamName.replace(/\s+/g, "-").toLowerCase()}.png`;
+          a.click();
+        }}
+        className="text-xs text-white/30 hover:text-white/60 transition-colors"
+      >
+        Telecharger
+      </button>
     </div>
   );
 }

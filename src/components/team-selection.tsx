@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, onSnapshot, doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { collection, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useAuthContext } from "@/components/auth-provider";
+import { useAuthContext } from "./auth-provider";
 import { setTeamId as storeTeamId, setEventId } from "@/lib/auth";
 
 const EVENT_ID = "event-default";
@@ -11,7 +11,6 @@ const EVENT_ID = "event-default";
 interface Team {
   id: string;
   name: string;
-  maxSize: number;
   memberCount: number;
 }
 
@@ -28,7 +27,6 @@ export function TeamSelection() {
         const teamsData: Team[] = [];
         for (const teamDoc of snap.docs) {
           const data = teamDoc.data();
-          // Get member count from subcollection
           const membersSnap = await import("firebase/firestore").then(
             ({ getDocs, collection: coll }) =>
               getDocs(coll(db, "events", EVENT_ID, "teams", teamDoc.id, "members"))
@@ -36,7 +34,6 @@ export function TeamSelection() {
           teamsData.push({
             id: teamDoc.id,
             name: data.name,
-            maxSize: data.maxSize || 5,
             memberCount: membersSnap.size,
           });
         }
@@ -46,17 +43,11 @@ export function TeamSelection() {
     return unsub;
   }, []);
 
-  async function handleJoin(teamId: string, memberCount: number, maxSize: number) {
-    if (memberCount >= maxSize) {
-      setError("Cette equipe est complete !");
-      return;
-    }
-
+  async function handleJoin(teamId: string) {
     setJoining(teamId);
     setError(null);
 
     try {
-      // Check if already a member
       const memberRef = doc(db, "events", EVENT_ID, "teams", teamId, "members", uuid);
       const existing = await getDoc(memberRef);
       if (!existing.exists()) {
@@ -98,19 +89,14 @@ export function TeamSelection() {
 
         <div className="space-y-4">
           {teams.map((team) => {
-            const isFull = team.memberCount >= team.maxSize;
             const isJoining = joining === team.id;
 
             return (
               <button
                 key={team.id}
-                onClick={() => handleJoin(team.id, team.memberCount, team.maxSize)}
-                disabled={isFull || isJoining}
-                className={`w-full text-left p-5 rounded-2xl transition-all active:scale-[0.98] ${
-                  isFull
-                    ? "bg-surface-container-highest/50 opacity-60 cursor-not-allowed"
-                    : "bg-surface-container-lowest editorial-shadow hover:shadow-lg"
-                }`}
+                onClick={() => handleJoin(team.id)}
+                disabled={isJoining}
+                className="w-full text-left p-5 rounded-2xl transition-all active:scale-[0.98] bg-surface-container-lowest editorial-shadow hover:shadow-lg"
               >
                 <div className="flex justify-between items-center">
                   <div>
@@ -118,31 +104,18 @@ export function TeamSelection() {
                       {team.name}
                     </h3>
                     <p className="text-sm text-on-surface-variant mt-1">
-                      {team.memberCount}/{team.maxSize} membres
+                      {team.memberCount} membre{team.memberCount !== 1 ? "s" : ""}
                     </p>
                   </div>
                   <div className="shrink-0">
                     {isJoining ? (
                       <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                    ) : isFull ? (
-                      <span className="text-xs font-bold text-outline uppercase">
-                        Complet
-                      </span>
                     ) : (
                       <span className="material-symbols-outlined text-primary">
                         arrow_forward
                       </span>
                     )}
                   </div>
-                </div>
-                {/* Progress bar */}
-                <div className="mt-3 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-secondary rounded-full transition-all"
-                    style={{
-                      width: `${(team.memberCount / team.maxSize) * 100}%`,
-                    }}
-                  />
                 </div>
               </button>
             );

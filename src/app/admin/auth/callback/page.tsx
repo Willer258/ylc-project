@@ -33,7 +33,7 @@ export default function AuthCallbackPage() {
         }
 
         // Store admin session
-        window.localStorage.setItem("ylc_admin_auth", "true");
+        window.localStorage.setItem("ycl_admin_auth", "true");
         router.replace("/admin");
       } catch (err) {
         console.error("Auth callback error:", err);

@@ -43,12 +43,7 @@ export default function JoinTeamPage() {
         if (teamDoc.exists()) {
           const data = teamDoc.data();
           setTeamName(data.name);
-          const membersSnap = await getDocs(
-            collection(db, "events", EVENT_ID, "teams", teamId, "members")
-          );
-          if (membersSnap.size >= (data.maxSize || 5)) {
-            setTeamFull(true);
-          }
+          // No member limit
         } else {
           setError("Cette equipe n'existe pas.");
         }

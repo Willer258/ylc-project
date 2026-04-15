@@ -441,23 +441,10 @@ function WordHintsEditor({
 
           {/* Type-specific editor */}
           {hint.type === "4images" && (
-            <div>
-              <p className="text-xs text-white/30 mb-2">URLs des 4 images (Cloudinary)</p>
-              {[0, 1, 2, 3].map((i) => (
-                <input
-                  key={i}
-                  type="text"
-                  value={hint.content.images?.[i] || ""}
-                  onChange={(e) => {
-                    const images = [...(hint.content.images || ["", "", "", ""])];
-                    images[i] = e.target.value;
-                    onUpdateHint(hi, { ...hint, content: { ...hint.content, images } });
-                  }}
-                  placeholder={`Image ${i + 1} URL`}
-                  className="w-full bg-white/5 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none mb-1"
-                />
-              ))}
-            </div>
+            <ImageHintEditor
+              images={hint.content.images || ["", "", "", ""]}
+              onChange={(images) => onUpdateHint(hi, { ...hint, content: { ...hint.content, images } })}
+            />
           )}
 
           {hint.type === "anagram" && (
@@ -521,6 +508,114 @@ function WordHintsEditor({
               + {HINT_LABELS[type]}
             </button>
           ))}
+      </div>
+    </div>
+  );
+}
+
+// === 4 Images Upload Editor ===
+function ImageHintEditor({
+  images,
+  onChange,
+}: {
+  images: string[];
+  onChange: (images: string[]) => void;
+}) {
+  const [uploading, setUploading] = useState<number | null>(null);
+
+  async function handleUpload(index: number, file: File) {
+    setUploading(index);
+    try {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ylc_unsigned";
+
+      if (!cloudName) {
+        // Fallback: base64 for dev
+        const reader = new FileReader();
+        reader.onload = () => {
+          const updated = [...images];
+          updated[index] = reader.result as string;
+          onChange(updated);
+          setUploading(null);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+      formData.append("folder", "ylc/hints");
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      if (!res.ok) throw new Error("Upload failed");
+
+      const data = await res.json();
+      const updated = [...images];
+      updated[index] = data.secure_url;
+      onChange(updated);
+    } catch (err) {
+      console.error("Image upload error:", err);
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  function handleRemove(index: number) {
+    const updated = [...images];
+    updated[index] = "";
+    onChange(updated);
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-white/30 mb-2">4 images (cliquez pour uploader)</p>
+      <div className="grid grid-cols-2 gap-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
+            {images[i] ? (
+              <>
+                <img
+                  src={images[i]}
+                  alt={`Image ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  onClick={() => handleRemove(i)}
+                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white/80 hover:text-red-400 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </>
+            ) : (
+              <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors">
+                {uploading === i ? (
+                  <div className="w-6 h-6 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-2xl text-white/20 mb-1">
+                      add_photo_alternate
+                    </span>
+                    <span className="text-[10px] text-white/20">Image {i + 1}</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUpload(i, file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
