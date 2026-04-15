@@ -1,34 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import QRCode from "qrcode";
-
-const EVENT_ID = "event-default";
 
 interface QRSlot {
   id: string;
   slotCode: string;
   label: string;
-  currentGameId: string | null;
-  targetPhrase: number | null;
-  targetWord: number | null;
-  hintType: string | null;
-  scannedBy: Array<{ teamId: string; timestamp: Date }>;
-}
-
-interface GameTemplate {
-  id: string;
-  name: string;
-  phrases: Array<{
-    text: string;
-    reference: string;
-    words: Array<{
-      value: string;
-      hints: Array<{ type: string }>;
-    }>;
-  }>;
+  scannedBy: Array<{ teamId: string; timestamp: string }>;
 }
 
 export default function AdminQRPage() {
@@ -37,47 +18,20 @@ export default function AdminQRPage() {
   const [newLabel, setNewLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
-  const [templates, setTemplates] = useState<GameTemplate[]>([]);
-  const [editingSlot, setEditingSlot] = useState<string | null>(null);
-  const [activeGameId, setActiveGameId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     setBaseUrl(window.location.origin);
-
-    // Load QR slots
     const q = query(collection(db, "qrSlots"), orderBy("slotCode"));
-    const unsub1 = onSnapshot(q, (snap) => {
+    const unsub = onSnapshot(q, (snap) => {
       setSlots(snap.docs.map((d) => ({
         id: d.id,
         slotCode: d.data().slotCode || d.id,
         label: d.data().label || "",
-        currentGameId: d.data().currentGameId || null,
-        targetPhrase: d.data().targetPhrase ?? null,
-        targetWord: d.data().targetWord ?? null,
-        hintType: d.data().hintType || null,
         scannedBy: d.data().scannedBy || [],
       })));
     });
-
-    // Load active game
-    const unsub2 = onSnapshot(doc(db, "events", EVENT_ID), (snap) => {
-      if (snap.exists()) setActiveGameId(snap.data().activeGameId || null);
-    });
-
-    return () => { unsub1(); unsub2(); };
-  }, []);
-
-  // Load templates
-  useEffect(() => {
-    async function loadTemplates() {
-      const snap = await getDocs(collection(db, "gameTemplates"));
-      setTemplates(snap.docs.map((d) => ({
-        id: d.id,
-        name: d.data().name || "Sans nom",
-        phrases: d.data().phrases || [],
-      })));
-    }
-    loadTemplates();
+    return unsub;
   }, []);
 
   async function handleCreate() {
@@ -88,10 +42,6 @@ export default function AdminQRPage() {
       await addDoc(collection(db, "qrSlots"), {
         slotCode: code,
         label: newLabel.trim() || code,
-        currentGameId: null,
-        targetPhrase: null,
-        targetWord: null,
-        hintType: null,
         scannedBy: [],
         createdAt: serverTimestamp(),
       });
@@ -114,10 +64,6 @@ export default function AdminQRPage() {
         await addDoc(collection(db, "qrSlots"), {
           slotCode: code,
           label: code,
-          currentGameId: null,
-          targetPhrase: null,
-          targetWord: null,
-          hintType: null,
           scannedBy: [],
           createdAt: serverTimestamp(),
         });
@@ -132,91 +78,6 @@ export default function AdminQRPage() {
   async function handleDelete(id: string) {
     if (!confirm("Supprimer ce QR slot ?")) return;
     await deleteDoc(doc(db, "qrSlots", id));
-  }
-
-  async function handleAssign(slotId: string, gameId: string | null, phraseIdx: number | null, wordIdx: number | null, hintType: string | null) {
-    await updateDoc(doc(db, "qrSlots", slotId), {
-      currentGameId: gameId,
-      targetPhrase: phraseIdx,
-      targetWord: wordIdx,
-      hintType,
-    });
-    setEditingSlot(null);
-  }
-
-  async function handleAutoAssign() {
-    if (!activeGameId) {
-      alert("Aucun jeu actif. Lancez un jeu d'abord.");
-      return;
-    }
-    const template = templates.find((t) => t.id === activeGameId);
-    if (!template) {
-      alert("Template du jeu actif introuvable.");
-      return;
-    }
-
-    // Collect all hints across all phrases/words
-    const allHints: Array<{ phraseIdx: number; wordIdx: number; hintType: string; wordValue: string }> = [];
-    template.phrases.forEach((phrase, pi) => {
-      phrase.words.forEach((word, wi) => {
-        word.hints.forEach((hint) => {
-          allHints.push({ phraseIdx: pi, wordIdx: wi, hintType: hint.type, wordValue: word.value });
-        });
-      });
-    });
-
-    if (allHints.length === 0) {
-      alert("Aucun indice configure dans le template.");
-      return;
-    }
-
-    // Get unassigned slots
-    const unassigned = slots.filter((s) => !s.currentGameId);
-    if (unassigned.length === 0) {
-      alert("Aucun QR non-assigne disponible. Creez-en d'abord.");
-      return;
-    }
-
-    const toAssign = Math.min(unassigned.length, allHints.length);
-    if (!confirm(`Assigner automatiquement ${toAssign} QR codes a ${allHints.length} indices ?`)) return;
-
-    for (let i = 0; i < toAssign; i++) {
-      const hint = allHints[i];
-      await updateDoc(doc(db, "qrSlots", unassigned[i].id), {
-        currentGameId: activeGameId,
-        targetPhrase: hint.phraseIdx,
-        targetWord: hint.wordIdx,
-        hintType: hint.hintType,
-        label: `${hint.wordValue} — ${hint.hintType}`,
-      });
-    }
-
-    if (allHints.length > unassigned.length) {
-      alert(`${toAssign} QR assignes. Il manque ${allHints.length - unassigned.length} QR pour couvrir tous les indices.`);
-    }
-  }
-
-  async function handleClearAssignments() {
-    if (!confirm("Retirer toutes les assignations QR ?")) return;
-    for (const slot of slots) {
-      if (slot.currentGameId) {
-        await updateDoc(doc(db, "qrSlots", slot.id), {
-          currentGameId: null,
-          targetPhrase: null,
-          targetWord: null,
-          hintType: null,
-        });
-      }
-    }
-  }
-
-  async function handleResetScans() {
-    if (!confirm("Reinitialiser les scans de tous les QR ?")) return;
-    for (const slot of slots) {
-      if (slot.scannedBy.length > 0) {
-        await updateDoc(doc(db, "qrSlots", slot.id), { scannedBy: [] });
-      }
-    }
   }
 
   async function handleDownloadQR(slotCode: string) {
@@ -235,14 +96,7 @@ export default function AdminQRPage() {
     }
   }
 
-  // Get template for currently editing slot
-  function getTemplateForSlot(slot: QRSlot) {
-    if (slot.currentGameId) return templates.find((t) => t.id === slot.currentGameId);
-    if (activeGameId) return templates.find((t) => t.id === activeGameId);
-    return templates[0];
-  }
-
-  const assignedCount = slots.filter((s) => s.currentGameId).length;
+  const totalScans = slots.reduce((s, sl) => s + sl.scannedBy.length, 0);
 
   return (
     <div>
@@ -250,7 +104,7 @@ export default function AdminQRPage() {
         <div>
           <h1 className="text-2xl font-bold">QR Codes ({slots.length})</h1>
           <p className="text-sm text-white/40 mt-1">
-            {assignedCount} assigne{assignedCount !== 1 ? "s" : ""} · {slots.length - assignedCount} libre{slots.length - assignedCount !== 1 ? "s" : ""}
+            {totalScans} scan{totalScans !== 1 ? "s" : ""} au total
           </p>
         </div>
         <div className="flex gap-2">
@@ -263,6 +117,16 @@ export default function AdminQRPage() {
           </button>
           {slots.length > 0 && (
             <>
+              <button
+                onClick={() => setShowAll(!showAll)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  showAll
+                    ? "bg-amber-500 text-black"
+                    : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                }`}
+              >
+                {showAll ? "Masquer les QR" : "Afficher les QR"}
+              </button>
               <button
                 onClick={handleDownloadAll}
                 className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold hover:bg-emerald-500/20"
@@ -283,42 +147,23 @@ export default function AdminQRPage() {
         </div>
       </div>
 
-      {/* Auto-assign bar */}
-      <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-bold text-amber-400">Assignation automatique</p>
-          <p className="text-xs text-white/40 mt-0.5">
-            {activeGameId
-              ? `Jeu actif : ${templates.find((t) => t.id === activeGameId)?.name || activeGameId}`
-              : "Aucun jeu actif — lancez un jeu dans le Panneau Live"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleAutoAssign}
-            disabled={!activeGameId}
-            className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold hover:bg-amber-400 disabled:opacity-30 transition-colors"
-          >
-            Auto-assigner
-          </button>
-          {assignedCount > 0 && (
-            <>
-              <button
-                onClick={handleClearAssignments}
-                className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-sm font-bold hover:bg-white/10"
-              >
-                Retirer tout
-              </button>
-              <button
-                onClick={handleResetScans}
-                className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-sm font-bold hover:bg-white/10"
-              >
-                Reset scans
-              </button>
-            </>
-          )}
-        </div>
+      {/* Info banner */}
+      <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 mb-6">
+        <p className="text-sm text-amber-400 font-bold">Comment ca marche</p>
+        <p className="text-xs text-white/40 mt-1">
+          Chaque QR code est generique. Quand un joueur le scanne, il choisit pour quel mot debloquer un indice.
+          Un QR ne peut etre scanne qu&apos;une fois par equipe. Imprimez-les et cachez-les dans le lieu de l&apos;evenement !
+        </p>
       </div>
+
+      {/* QR Grid preview */}
+      {showAll && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+          {slots.map((slot) => (
+            <QRPreviewCard key={slot.id} slotCode={slot.slotCode} label={slot.label} baseUrl={baseUrl} scans={slot.scannedBy.length} />
+          ))}
+        </div>
+      )}
 
       {/* Manual create */}
       <div className="flex gap-3 mb-6">
@@ -347,73 +192,34 @@ export default function AdminQRPage() {
 
       {/* Slots list */}
       <div className="space-y-2">
-        {slots.map((slot) => {
-          const isEditing = editingSlot === slot.id;
-          const template = getTemplateForSlot(slot);
-
-          return (
-            <div key={slot.id} className="bg-white/5 border border-white/5 rounded-xl overflow-hidden">
-              {/* Main row */}
-              <div className="p-4 flex items-center gap-4">
-                <div className="shrink-0 w-20 text-center">
-                  <p className="font-mono font-bold text-amber-400 text-sm">{slot.slotCode}</p>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white/60 text-sm truncate">{slot.label || "—"}</p>
-                </div>
-                <div className="shrink-0 flex items-center gap-2">
-                  {slot.currentGameId ? (
-                    <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">check</span>
-                      {slot.hintType}
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-white/20">
-                      Non assigne
-                    </span>
-                  )}
-                  <span className="text-xs text-white/20">
-                    {slot.scannedBy.length} scan{slot.scannedBy.length !== 1 ? "s" : ""}
-                  </span>
-                  <button
-                    onClick={() => setEditingSlot(isEditing ? null : slot.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isEditing ? "bg-amber-500/20 text-amber-400" : "bg-white/5 text-white/40 hover:text-white/70"
-                    }`}
-                    title="Configurer"
-                  >
-                    <span className="material-symbols-outlined text-lg">tune</span>
-                  </button>
-                  <button
-                    onClick={() => handleDownloadQR(slot.slotCode)}
-                    className="p-2 rounded-lg bg-white/5 text-white/40 hover:text-white/70"
-                    title="Telecharger QR"
-                  >
-                    <span className="material-symbols-outlined text-lg">download</span>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(slot.id)}
-                    className="p-2 rounded-lg bg-white/5 text-white/20 hover:text-red-400"
-                  >
-                    <span className="material-symbols-outlined text-lg">delete</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Edit panel */}
-              {isEditing && template && (
-                <AssignPanel
-                  slot={slot}
-                  template={template}
-                  onAssign={(phraseIdx, wordIdx, hintType) =>
-                    handleAssign(slot.id, template.id, phraseIdx, wordIdx, hintType)
-                  }
-                  onClear={() => handleAssign(slot.id, null, null, null, null)}
-                />
-              )}
+        {slots.map((slot) => (
+          <div key={slot.id} className="bg-white/5 border border-white/5 rounded-xl p-4 flex items-center gap-4">
+            <div className="shrink-0 w-20 text-center">
+              <p className="font-mono font-bold text-amber-400 text-sm">{slot.slotCode}</p>
             </div>
-          );
-        })}
+            <div className="flex-1 min-w-0">
+              <p className="text-white/60 text-sm truncate">{slot.label || "—"}</p>
+            </div>
+            <div className="shrink-0 flex items-center gap-2">
+              <span className="text-xs text-white/20">
+                {slot.scannedBy.length} scan{slot.scannedBy.length !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={() => handleDownloadQR(slot.slotCode)}
+                className="p-2 rounded-lg bg-white/5 text-white/40 hover:text-white/70"
+                title="Telecharger QR"
+              >
+                <span className="material-symbols-outlined text-lg">download</span>
+              </button>
+              <button
+                onClick={() => handleDelete(slot.id)}
+                className="p-2 rounded-lg bg-white/5 text-white/20 hover:text-red-400"
+              >
+                <span className="material-symbols-outlined text-lg">delete</span>
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {slots.length === 0 && (
@@ -432,109 +238,24 @@ export default function AdminQRPage() {
   );
 }
 
-// === Assignment Panel ===
-function AssignPanel({
-  slot,
-  template,
-  onAssign,
-  onClear,
-}: {
-  slot: QRSlot;
-  template: GameTemplate;
-  onAssign: (phraseIdx: number, wordIdx: number, hintType: string) => void;
-  onClear: () => void;
-}) {
-  const [selPhrase, setSelPhrase] = useState<number>(slot.targetPhrase ?? 0);
-  const [selWord, setSelWord] = useState<number>(slot.targetWord ?? 0);
-  const [selHint, setSelHint] = useState<string>(slot.hintType || "");
+// === QR Preview Card ===
+function QRPreviewCard({ slotCode, label, baseUrl, scans }: { slotCode: string; label: string; baseUrl: string; scans: number }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
 
-  const phrase = template.phrases[selPhrase];
-  const word = phrase?.words?.[selWord];
-  const hints = word?.hints || [];
+  useEffect(() => {
+    QRCode.toDataURL(`${baseUrl}/qr/${slotCode}`, { width: 250, margin: 2 }).then(setDataUrl);
+  }, [slotCode, baseUrl]);
 
   return (
-    <div className="border-t border-white/5 bg-white/[0.02] p-4 space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        {/* Phrase select */}
-        <div>
-          <label className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1 block">
-            Phrase
-          </label>
-          <select
-            value={selPhrase}
-            onChange={(e) => { setSelPhrase(Number(e.target.value)); setSelWord(0); setSelHint(""); }}
-            className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/30"
-          >
-            {template.phrases.map((p, i) => (
-              <option key={i} value={i}>
-                #{i + 1} — {p.text.substring(0, 30)}{p.text.length > 30 ? "..." : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Word select */}
-        <div>
-          <label className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1 block">
-            Mot
-          </label>
-          <select
-            value={selWord}
-            onChange={(e) => { setSelWord(Number(e.target.value)); setSelHint(""); }}
-            className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/30"
-          >
-            {phrase?.words?.map((w, i) => (
-              <option key={i} value={i}>
-                {w.value} ({w.hints.length} indice{w.hints.length !== 1 ? "s" : ""})
-              </option>
-            )) || <option>—</option>}
-          </select>
-        </div>
-
-        {/* Hint type select */}
-        <div>
-          <label className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1 block">
-            Type d&apos;indice
-          </label>
-          <select
-            value={selHint}
-            onChange={(e) => setSelHint(e.target.value)}
-            className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/30"
-          >
-            <option value="">Choisir...</option>
-            {hints.map((h, i) => (
-              <option key={i} value={h.type}>{h.type}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Preview */}
-      {word && (
-        <div className="text-xs text-white/30">
-          Mot : <span className="text-white/60 font-mono">{word.value}</span>
-          {" · "}Indices : {hints.map((h) => h.type).join(", ") || "aucun"}
-        </div>
+    <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col items-center gap-2">
+      {dataUrl ? (
+        <img src={dataUrl} alt={`QR ${slotCode}`} className="w-full aspect-square rounded-lg" />
+      ) : (
+        <div className="w-full aspect-square rounded-lg bg-white/5 animate-pulse" />
       )}
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onAssign(selPhrase, selWord, selHint)}
-          disabled={!selHint}
-          className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-400 disabled:opacity-30 transition-colors"
-        >
-          Assigner
-        </button>
-        {slot.currentGameId && (
-          <button
-            onClick={onClear}
-            className="px-4 py-2 rounded-lg bg-white/5 text-white/40 text-sm font-bold hover:bg-white/10"
-          >
-            Retirer l&apos;assignation
-          </button>
-        )}
-      </div>
+      <p className="font-mono font-bold text-amber-400 text-sm">{slotCode}</p>
+      {label !== slotCode && <p className="text-xs text-white/40 text-center">{label}</p>}
+      <p className="text-[10px] text-white/20">{scans} scan{scans !== 1 ? "s" : ""}</p>
     </div>
   );
 }
