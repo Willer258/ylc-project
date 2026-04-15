@@ -22,7 +22,7 @@ export default function JoinTeamPage() {
   // Check if already logged in
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const existingTeam = localStorage.getItem("ylc_team_id");
+    const existingTeam = localStorage.getItem("ycl_team_id");
     if (existingTeam) {
       router.replace("/");
       return;

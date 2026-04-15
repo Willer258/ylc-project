@@ -72,7 +72,7 @@ export default function PhotosPage() {
     setUploading(true);
     try {
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ylc_unsigned";
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ycl_unsigned";
 
       if (!cloudName) {
         // Fallback: store as base64 in Firestore (dev mode)
@@ -115,7 +115,7 @@ export default function PhotosPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", uploadPreset);
-      formData.append("folder", `ylc/${EVENT_ID}`);
+      formData.append("folder", `ycl/${EVENT_ID}`);
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,

@@ -527,7 +527,7 @@ function ImageHintEditor({
     setUploading(index);
     try {
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ylc_unsigned";
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ycl_unsigned";
 
       if (!cloudName) {
         // Fallback: base64 for dev
@@ -545,7 +545,7 @@ function ImageHintEditor({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", uploadPreset);
-      formData.append("folder", "ylc/hints");
+      formData.append("folder", "ycl/hints");
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
