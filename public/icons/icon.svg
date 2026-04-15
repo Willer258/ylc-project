@@ -16,8 +16,8 @@
   <!-- Cross subtle watermark -->
   <path d="M246 80h20v352h-20z" fill="rgba(255,255,255,0.06)"/>
   <path d="M160 180h192v20H160z" fill="rgba(255,255,255,0.06)"/>
-  <!-- YLC text -->
-  <text x="256" y="310" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="900" font-size="180" fill="#FDF6EC" letter-spacing="-8">YLC</text>
+  <!-- YCL text -->
+  <text x="256" y="310" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="900" font-size="180" fill="#FDF6EC" letter-spacing="-8">YCL</text>
   <!-- Subtitle -->
-  <text x="256" y="390" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="36" fill="rgba(253,246,236,0.6)" letter-spacing="12">YOUNG LIFE</text>
+  <text x="256" y="390" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="600" font-size="32" fill="rgba(253,246,236,0.6)" letter-spacing="8">LIFESTYLE</text>
 </svg>
