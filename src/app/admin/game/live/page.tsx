@@ -130,6 +130,14 @@ export default function AdminGameLivePage() {
       activeGameId: selectedTemplate,
     });
 
+    // Reset QR scans
+    const qrSnap = await getDocs(collection(db, "qrSlots"));
+    for (const qrDoc of qrSnap.docs) {
+      if ((qrDoc.data().scannedBy || []).length > 0) {
+        await updateDoc(doc(db, "qrSlots", qrDoc.id), { scannedBy: [] });
+      }
+    }
+
     // Initialize progress for each team with their assigned phrase
     for (const teamDoc of selectedTeamDocs) {
       await setDoc(doc(db, "gameProgress", selectedTemplate, "teams", teamDoc.id), {
