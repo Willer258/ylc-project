@@ -64,9 +64,9 @@ export default function QRScanPage() {
           return;
         }
 
-        // 2. Check if already scanned by this team
+        // 2. Check if already scanned by any team
         const scannedBy = (slotData.scannedBy as Array<{ teamId: string }>) || [];
-        if (scannedBy.some((s) => s.teamId === teamId)) {
+        if (scannedBy.length > 0) {
           setStatus("already");
           return;
         }
@@ -239,7 +239,7 @@ export default function QRScanPage() {
         <div className="text-center space-y-4 max-w-sm">
           <span className="material-symbols-outlined text-5xl text-on-surface-variant/40 block">check_circle</span>
           <p className="text-on-surface font-bold text-lg">Deja scanne !</p>
-          <p className="text-on-surface-variant">Votre equipe a deja utilise ce QR code.</p>
+          <p className="text-on-surface-variant">Ce QR code a deja ete utilise. Trouvez-en un autre !</p>
           <button
             onClick={() => router.push("/jeu")}
             className="px-6 py-3 rounded-full gradient-cta text-on-primary font-bold"
