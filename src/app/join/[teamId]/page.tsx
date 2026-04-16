@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useAuthContext } from "@/components/auth-provider";
 
 const EVENT_ID = "event-default";
 
@@ -10,6 +11,7 @@ export default function JoinTeamPage() {
   const params = useParams();
   const router = useRouter();
   const teamId = params.teamId as string;
+  const auth = useAuthContext();
 
   const [name, setName] = useState("");
   const [teamName, setTeamName] = useState<string | null>(null);
@@ -22,13 +24,12 @@ export default function JoinTeamPage() {
   // Check if already logged in
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const existingTeam = localStorage.getItem("ycl_team_id");
-    if (existingTeam) {
+    if (auth.teamId) {
       router.replace("/");
       return;
     }
     setReady(true);
-  }, [router]);
+  }, [router, auth.teamId]);
 
   // Load team info
   useEffect(() => {
@@ -69,9 +70,9 @@ export default function JoinTeamPage() {
     try {
       const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
       const { db } = await import("@/lib/firebase");
-      const { getDeviceUUID, setUserName, setTeamId, setEventId } = await import("@/lib/auth");
+      const { setEventId } = await import("@/lib/auth");
 
-      const uuid = getDeviceUUID();
+      const uuid = auth.uuid;
 
       // Save member in event
       await setDoc(
@@ -86,9 +87,9 @@ export default function JoinTeamPage() {
         { name: trimmedName, deviceUUID: uuid, joinedAt: serverTimestamp(), captainVote: null }
       );
 
-      // Store locally
-      setUserName(trimmedName);
-      setTeamId(teamId);
+      // Update React state + localStorage via context
+      auth.setUserName(trimmedName);
+      auth.setTeamId(teamId);
       setEventId(EVENT_ID);
 
       // Redirect

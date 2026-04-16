@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="currentColor">
+  <!-- Top crescent horns -->
+  <path d="M100 45 C100 45, 85 20, 65 10 C60 8, 58 12, 62 16 C75 28, 85 38, 88 48 Z" />
+  <path d="M100 45 C100 45, 115 20, 135 10 C140 8, 142 12, 138 16 C125 28, 115 38, 112 48 Z" />
+
+  <!-- Left diamond/arrow -->
+  <path d="M88 55 L55 80 L42 80 C38 80, 37 76, 40 74 L70 55 Z" />
+  <path d="M88 145 L55 120 L42 120 C38 120, 37 124, 40 126 L70 145 Z" />
+  <path d="M55 80 L55 120 L65 110 L65 90 Z" />
+
+  <!-- Right diamond/arrow -->
+  <path d="M112 55 L145 80 L158 80 C162 80, 163 76, 160 74 L130 55 Z" />
+  <path d="M112 145 L145 120 L158 120 C162 120, 163 124, 160 126 L130 145 Z" />
+  <path d="M145 80 L145 120 L135 110 L135 90 Z" />
+
+  <!-- Center figure-8 -->
+  <path d="M100 52 C89 52, 80 61, 80 72 C80 83, 89 90, 100 90 C111 90, 120 83, 120 72 C120 61, 111 52, 100 52 Z M100 62 C105 62, 110 66, 110 72 C110 78, 105 82, 100 82 C95 82, 90 78, 90 72 C90 66, 95 62, 100 62 Z" fill-rule="evenodd" />
+  <path d="M100 110 C89 110, 80 117, 80 128 C80 139, 89 148, 100 148 C111 148, 120 139, 120 128 C120 117, 111 110, 100 110 Z M100 120 C105 120, 110 123, 110 128 C110 133, 105 138, 100 138 C95 138, 90 133, 90 128 C90 123, 95 120, 100 120 Z" fill-rule="evenodd" />
+
+  <!-- Center bridge connecting the 8 -->
+  <rect x="96" y="88" width="8" height="24" rx="2" />
+
+  <!-- Bottom crescent -->
+  <path d="M100 155 C100 155, 85 180, 65 190 C60 192, 58 188, 62 184 C75 172, 85 162, 88 152 Z" />
+  <path d="M100 155 C100 155, 115 180, 135 190 C140 192, 142 188, 138 184 C125 172, 115 162, 112 152 Z" />
+
+  <!-- VIOLIES text -->
+  <text x="100" y="225" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="18" font-weight="500" letter-spacing="8" fill="currentColor">VIOLIES</text>
+</svg>

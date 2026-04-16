@@ -570,50 +570,90 @@ function ImageHintEditor({
     onChange(updated);
   }
 
+  function handleUrlChange(index: number, url: string) {
+    const updated = [...images];
+    updated[index] = url;
+    onChange(updated);
+  }
+
+  async function handleCopy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch (err) {
+      console.error("Copy error:", err);
+    }
+  }
+
   return (
     <div>
-      <p className="text-xs text-white/30 mb-2">4 images (cliquez pour uploader)</p>
-      <div className="grid grid-cols-2 gap-2">
+      <p className="text-xs text-white/30 mb-2">4 images (uploader ou coller une URL)</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
-            {images[i] ? (
-              <>
-                <img
-                  src={images[i]}
-                  alt={`Image ${i + 1}`}
-                  className="w-full h-full object-cover"
-                />
+          <div key={i} className="space-y-2">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10">
+              {images[i] ? (
+                <>
+                  <img
+                    src={images[i]}
+                    alt={`Image ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={() => handleRemove(i)}
+                    className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white/80 hover:text-red-400 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </>
+              ) : (
+                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors">
+                  {uploading === i ? (
+                    <div className="w-6 h-6 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-2xl text-white/20 mb-1">
+                        add_photo_alternate
+                      </span>
+                      <span className="text-[10px] text-white/20">Image {i + 1}</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(i, file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* URL input — always visible so the source is transparent and editable */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-white/30 font-mono shrink-0 w-6">
+                #{i + 1}
+              </span>
+              <input
+                type="text"
+                value={images[i] || ""}
+                onChange={(e) => handleUrlChange(i, e.target.value)}
+                placeholder="https://... (URL de l'image)"
+                className="flex-1 min-w-0 bg-white/5 rounded-md px-2 py-1.5 text-[11px] text-white/70 font-mono placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-amber-500/30 truncate"
+                title={images[i] || ""}
+              />
+              {images[i] && (
                 <button
-                  onClick={() => handleRemove(i)}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white/80 hover:text-red-400 transition-colors"
+                  onClick={() => handleCopy(images[i])}
+                  className="shrink-0 p-1.5 rounded-md bg-white/5 text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                  title="Copier l'URL"
                 >
-                  <span className="material-symbols-outlined text-sm">close</span>
+                  <span className="material-symbols-outlined text-sm">content_copy</span>
                 </button>
-              </>
-            ) : (
-              <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors">
-                {uploading === i ? (
-                  <div className="w-6 h-6 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-2xl text-white/20 mb-1">
-                      add_photo_alternate
-                    </span>
-                    <span className="text-[10px] text-white/20">Image {i + 1}</span>
-                  </>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUpload(i, file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            )}
+              )}
+            </div>
           </div>
         ))}
       </div>

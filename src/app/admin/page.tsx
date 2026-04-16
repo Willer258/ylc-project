@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, getCountFromServer } from "firebase/firestore";
+import { collection, doc, onSnapshot, getCountFromServer, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const EVENT_ID = "event-default";
@@ -12,6 +12,7 @@ interface Stats {
   photos: number;
   reviews: number;
   timelinePosition: string;
+  timelineLabel: string;
   gameStatus: string;
 }
 
@@ -21,17 +22,35 @@ export default function AdminDashboard() {
     members: 0,
     photos: 0,
     reviews: 0,
-    timelinePosition: "accueil",
+    timelinePosition: "",
+    timelineLabel: "—",
     gameStatus: "inactive",
   });
 
   useEffect(() => {
+    // Load timeline steps to resolve position ID → title
+    const stepsMap = new Map<string, string>();
+    getDocs(query(collection(db, "events", EVENT_ID, "timeline"), orderBy("order"))).then((snap) => {
+      snap.docs.forEach((d) => {
+        stepsMap.set(d.id, d.data().title || d.id);
+      });
+      // Re-resolve label if position already loaded
+      setStats((prev) => ({
+        ...prev,
+        timelineLabel: prev.timelinePosition
+          ? stepsMap.get(prev.timelinePosition) || prev.timelinePosition
+          : "—",
+      }));
+    });
+
     // Listen to event
     const eventUnsub = onSnapshot(doc(db, "events", EVENT_ID), (snap) => {
       if (snap.exists()) {
+        const posId = snap.data().timelinePosition || "";
         setStats((prev) => ({
           ...prev,
-          timelinePosition: snap.data().timelinePosition || "accueil",
+          timelinePosition: posId,
+          timelineLabel: posId ? (stepsMap.get(posId) || posId) : "—",
           gameStatus: snap.data().activeGameId ? "active" : "inactive",
         }));
       }
@@ -64,7 +83,7 @@ export default function AdminDashboard() {
     { label: "Equipes", value: stats.teams, icon: "groups", color: "bg-blue-500/10 text-blue-400" },
     { label: "Photos", value: stats.photos, icon: "photo_library", color: "bg-purple-500/10 text-purple-400" },
     { label: "Avis", value: stats.reviews, icon: "reviews", color: "bg-emerald-500/10 text-emerald-400" },
-    { label: "Timeline", value: stats.timelinePosition, icon: "schedule", color: "bg-amber-500/10 text-amber-400" },
+    { label: "Timeline", value: stats.timelineLabel, icon: "schedule", color: "bg-amber-500/10 text-amber-400" },
   ];
 
   return (
@@ -84,7 +103,14 @@ export default function AdminDashboard() {
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest">
               {card.label}
             </p>
-            <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
+            <p
+              className={`font-bold text-white mt-1 truncate ${
+                typeof card.value === "number" ? "text-2xl" : "text-base"
+              }`}
+              title={String(card.value)}
+            >
+              {card.value}
+            </p>
           </div>
         ))}
       </div>
