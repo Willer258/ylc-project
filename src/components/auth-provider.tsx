@@ -7,6 +7,7 @@ interface AuthContextValue extends AuthState {
   setUserName: (name: string) => void;
   setTeamId: (teamId: string) => void;
   clearTeamId: () => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
