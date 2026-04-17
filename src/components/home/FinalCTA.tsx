@@ -31,16 +31,6 @@ export function FinalCTA({ userName }: FinalCTAProps) {
         )}
       </motion.h2>
 
-      <motion.p
-        className="font-body text-lg text-on-surface-variant mt-3"
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.1, duration: 0.5 }}
-      >
-        Rejoins la prochaine edition YCL.
-      </motion.p>
-
       {/* CTA Button */}
       <motion.div
         className="mt-8"

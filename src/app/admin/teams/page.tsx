@@ -89,8 +89,6 @@ export default function AdminTeamsPage() {
     try {
       await addDoc(collection(db, "events", EVENT_ID, "teams"), {
         name: newTeamName.trim(),
-        captainId: null,
-        captainVoteOpen: false,
         assignedPhraseId: null,
         wordsFound: [],
         completed: false,

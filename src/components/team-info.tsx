@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { collection, doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthContext } from "@/components/auth-provider";
-import { CaptainVote } from "@/components/captain-vote";
 
 const EVENT_ID = "event-default";
 
@@ -17,7 +16,6 @@ export function TeamInfo() {
   const { teamId, uuid } = useAuthContext();
   const [teamName, setTeamName] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
-  const [captainId, setCaptainId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!teamId) return;
@@ -27,7 +25,6 @@ export function TeamInfo() {
       (snap) => {
         if (snap.exists()) {
           setTeamName(snap.data().name || "");
-          setCaptainId(snap.data().captainId || null);
         }
       }
     );
@@ -70,23 +67,13 @@ export function TeamInfo() {
         {/* Members list */}
         <div className="flex flex-wrap gap-2">
           {members.map((member) => {
-            const isCaptain = member.id === captainId;
             const isMe = member.id === uuid;
 
             return (
               <div
                 key={member.id}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm ${
-                  isCaptain
-                    ? "bg-primary/10 text-primary font-bold"
-                    : "bg-surface-container text-on-surface-variant"
-                }`}
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm bg-surface-container text-on-surface-variant"
               >
-                {isCaptain && (
-                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    star
-                  </span>
-                )}
                 {member.name}
                 {isMe && <span className="text-xs opacity-60">(toi)</span>}
               </div>
@@ -94,9 +81,6 @@ export function TeamInfo() {
           })}
         </div>
       </div>
-
-      {/* Captain vote */}
-      <CaptainVote />
     </div>
   );
 }

@@ -21,16 +21,14 @@ export function OrganizedBy() {
         </h2>
 
         <p className="font-body text-base text-on-surface-variant leading-relaxed">
-          Fondee par{" "}
-          <strong className="text-on-surface">Leslie Massa</strong> et{" "}
-          <strong className="text-on-surface">Eve Kale</strong>,
-          Violies est une entreprise evenementielle qui orchestre mariages,
-          anniversaires, rendez-vous comme YCL, et plus encore.
+          VIOLIES est une agence specialisee dans l&apos;evenementiel et le branding.
+          Nous accompagnons les entreprises, marques et particuliers pour
+          l&apos;organisation de leurs evenements, tout lancements et la visibilite
+          de leurs marque. On transforme vos idees en experiences memorables.
         </p>
 
-        <p className="font-body text-sm text-on-surface-variant/80 leading-relaxed mt-4 italic">
-          &laquo; Permettre un sourire et assurer un evenement des plus
-          agreables a nos clients. &raquo;
+        <p className="font-body text-sm text-on-surface font-semibold leading-relaxed mt-4">
+          VIOLIES, donnez de l&apos;ampleur a vos projets et faites rayonner votre marque.
         </p>
       </div>
     </motion.section>

@@ -34,6 +34,7 @@ const TEAM_NAMES = [
   "Les Conquerants",
   "Les Vents de Pentecote",
   "Les Sentinelles",
+  "Young Christian Staff",
 ];
 
 async function run() {
@@ -52,8 +53,6 @@ async function run() {
   for (const name of TEAM_NAMES) {
     const ref = await addDoc(teamsRef, {
       name,
-      captainId: null,
-      captainVoteOpen: false,
       assignedPhraseId: null,
       wordsFound: [],
       completed: false,

@@ -15,7 +15,6 @@ export default function JoinTeamPage() {
 
   const [name, setName] = useState("");
   const [teamName, setTeamName] = useState<string | null>(null);
-  const [teamFull, setTeamFull] = useState(false);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +83,7 @@ export default function JoinTeamPage() {
       // Join team
       await setDoc(
         doc(db, "events", EVENT_ID, "teams", teamId, "members", uuid),
-        { name: trimmedName, deviceUUID: uuid, joinedAt: serverTimestamp(), captainVote: null }
+        { name: trimmedName, deviceUUID: uuid, joinedAt: serverTimestamp() }
       );
 
       // Update React state + localStorage via context
@@ -117,20 +116,6 @@ export default function JoinTeamPage() {
         <div className="text-center space-y-4 max-w-sm">
           <span className="material-symbols-outlined text-5xl text-error/40 block">error</span>
           <p className="text-on-surface font-bold text-lg">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (teamFull) {
-    return (
-      <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-background">
-        <div className="text-center space-y-4 max-w-sm">
-          <span className="material-symbols-outlined text-5xl text-error/40 block">group_off</span>
-          <h1 className="font-headline text-2xl font-extrabold text-on-surface">Equipe complete</h1>
-          <p className="text-on-surface-variant">
-            L&apos;equipe <strong>{teamName}</strong> est deja au complet.
-          </p>
         </div>
       </div>
     );
