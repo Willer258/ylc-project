@@ -18,6 +18,14 @@ export function QrScanner({ onScan, onClose }: QrScannerProps) {
 
     async function startScanner() {
       try {
+        // Check if camera API is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          if (mounted) {
+            setError("Votre navigateur ne supporte pas la camera. Utilisez la saisie manuelle.");
+          }
+          return;
+        }
+
         const { Html5Qrcode } = await import("html5-qrcode");
         if (!mounted || !scannerRef.current) return;
 

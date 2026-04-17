@@ -6,7 +6,16 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AuthProvider, useAuthContext } from "@/components/auth-provider";
 import { BottomNav } from "@/components/bottom-nav";
-import { QrScanner } from "@/components/qr-scanner";
+import dynamic from "next/dynamic";
+
+const QrScanner = dynamic(() => import("@/components/qr-scanner").then((m) => m.QrScanner), {
+  ssr: false,
+  loading: () => (
+    <div className="fixed inset-0 z-50 bg-on-surface/90 flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin" />
+    </div>
+  ),
+});
 
 const EVENT_ID = "event-default";
 
