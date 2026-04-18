@@ -90,10 +90,21 @@ export default function AdminQRPage() {
   }
 
   async function handleDownloadAll() {
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
     for (const slot of slots) {
-      await handleDownloadQR(slot.slotCode);
-      await new Promise((r) => setTimeout(r, 200));
+      const url = `${baseUrl}/qr/${slot.slotCode}`;
+      const dataUrl = await QRCode.toDataURL(url, { width: 400, margin: 2 });
+      const base64 = dataUrl.split(",")[1];
+      const filename = `indice-${slot.slotCode}.png`;
+      zip.file(filename, base64, { base64: true });
     }
+    const blob = await zip.generateAsync({ type: "blob" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "qr-indices.zip";
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   const totalScans = slots.reduce((s, sl) => s + sl.scannedBy.length, 0);
@@ -128,10 +139,50 @@ export default function AdminQRPage() {
                 {showAll ? "Masquer les QR" : "Afficher les QR"}
               </button>
               <button
+                onClick={async () => {
+                  const { jsPDF } = await import("jspdf");
+                  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+                  const pageW = 210;
+                  const cols = 3;
+                  const qrSize = 50;
+                  const gap = 10;
+                  const startX = (pageW - cols * qrSize - (cols - 1) * gap) / 2;
+                  const startY = 15;
+                  const rowH = qrSize + 20;
+                  const perPage = cols * 4;
+
+                  for (let i = 0; i < slots.length; i++) {
+                    if (i > 0 && i % perPage === 0) pdf.addPage();
+                    const posInPage = i % perPage;
+                    const col = posInPage % cols;
+                    const row = Math.floor(posInPage / cols);
+                    const x = startX + col * (qrSize + gap);
+                    const y = startY + row * rowH;
+
+                    const url = `${baseUrl}/qr/${slots[i].slotCode}`;
+                    const dataUrl = await QRCode.toDataURL(url, { width: 600, margin: 2 });
+                    pdf.addImage(dataUrl, "PNG", x, y, qrSize, qrSize);
+                    pdf.setFontSize(10);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text(slots[i].slotCode, x + qrSize / 2, y + qrSize + 5, { align: "center" });
+                    if (slots[i].label !== slots[i].slotCode) {
+                      pdf.setFontSize(7);
+                      pdf.setFont("helvetica", "normal");
+                      pdf.text(slots[i].label, x + qrSize / 2, y + qrSize + 9, { align: "center", maxWidth: qrSize });
+                    }
+                  }
+
+                  pdf.save("qr-indices.pdf");
+                }}
+                className="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 text-sm font-bold hover:bg-red-500/20"
+              >
+                PDF
+              </button>
+              <button
                 onClick={handleDownloadAll}
                 className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold hover:bg-emerald-500/20"
               >
-                Telecharger tous
+                ZIP
               </button>
               <button
                 onClick={async () => {

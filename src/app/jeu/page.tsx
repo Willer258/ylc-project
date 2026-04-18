@@ -75,13 +75,16 @@ function JeuPage() {
   const [completedReference, setCompletedReference] = useState("");
   const { showToast, ToastContainer } = useToast();
 
-  // Load active game
+  const [verseHintActive, setVerseHintActive] = useState(false);
+
+  // Load active game + verse hint flag
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "events", EVENT_ID), (snap) => {
       if (snap.exists()) {
         const id = snap.data().activeGameId;
         setGameId(id || null);
         if (!id) setGameStatus("nogame");
+        setVerseHintActive(snap.data().verseHintActive || false);
       }
     });
     return unsub;
@@ -506,6 +509,30 @@ function JeuPage() {
       animate={{ opacity: 1 }}
     >
       <ToastContainer />
+
+      {/* Verse hint banner — triggered by timeline */}
+      {verseHintActive && phrases.length > 0 && phrases[0].reference && !phraseComplete && (
+        <motion.div
+          className="mx-5 mb-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl p-5 text-center"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        >
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-purple-400 text-xl">auto_stories</span>
+            <p className="text-xs font-bold uppercase tracking-widest text-purple-400">
+              Indice special
+            </p>
+          </div>
+          <p className="font-headline text-lg font-bold text-on-surface">
+            {phrases[0].reference}
+          </p>
+          <p className="text-xs text-on-surface-variant mt-2">
+            Ce verset est la cle de votre phrase mystere !
+          </p>
+        </motion.div>
+      )}
+
       {/* Header */}
       <motion.div
         className="px-5 mb-5"

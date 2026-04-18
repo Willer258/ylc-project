@@ -125,11 +125,75 @@ export default function AdminTeamsPage() {
 
       {/* All QR codes grid */}
       {qrTeamId === "all" && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-          {teams.map((team) => (
-            <TeamQRCard key={team.id} teamId={team.id} teamName={team.name} baseUrl={baseUrl} />
-          ))}
-        </div>
+        <>
+          <div className="flex justify-end gap-2 mb-4">
+            <button
+              onClick={async () => {
+                const { jsPDF } = await import("jspdf");
+                const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+                const pageW = 210;
+                const cols = 2;
+                const qrSize = 70;
+                const gap = 15;
+                const startX = (pageW - cols * qrSize - (cols - 1) * gap) / 2;
+                const startY = 20;
+                const rowH = qrSize + 25;
+
+                for (let i = 0; i < teams.length; i++) {
+                  if (i > 0 && i % 6 === 0) pdf.addPage();
+                  const col = i % cols;
+                  const row = Math.floor((i % 6) / cols);
+                  const x = startX + col * (qrSize + gap);
+                  const y = startY + row * rowH;
+
+                  const url = `${baseUrl}/join/${teams[i].id}`;
+                  const dataUrl = await QRCode.toDataURL(url, { width: 600, margin: 2 });
+                  pdf.addImage(dataUrl, "PNG", x, y, qrSize, qrSize);
+                  pdf.setFontSize(11);
+                  pdf.setFont("helvetica", "bold");
+                  pdf.text(teams[i].name, x + qrSize / 2, y + qrSize + 6, { align: "center" });
+                  pdf.setFontSize(7);
+                  pdf.setFont("helvetica", "normal");
+                  pdf.text(`${baseUrl}/join/${teams[i].id}`, x + qrSize / 2, y + qrSize + 11, { align: "center", maxWidth: qrSize });
+                }
+
+                pdf.save("qr-equipes.pdf");
+              }}
+              className="px-5 py-2.5 rounded-lg bg-red-500/10 text-red-400 text-sm font-bold hover:bg-red-500/20 transition-colors flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+              Telecharger PDF
+            </button>
+            <button
+              onClick={async () => {
+                const JSZip = (await import("jszip")).default;
+                const zip = new JSZip();
+                for (const team of teams) {
+                  const url = `${baseUrl}/join/${team.id}`;
+                  const dataUrl = await QRCode.toDataURL(url, { width: 400, margin: 2 });
+                  const base64 = dataUrl.split(",")[1];
+                  const filename = `equipe-${team.name.replace(/\s+/g, "-").toLowerCase()}.png`;
+                  zip.file(filename, base64, { base64: true });
+                }
+                const blob = await zip.generateAsync({ type: "blob" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = "qr-equipes.zip";
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+              className="px-5 py-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">download</span>
+              Telecharger ZIP
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+            {teams.map((team) => (
+              <TeamQRCard key={team.id} teamId={team.id} teamName={team.name} baseUrl={baseUrl} />
+            ))}
+          </div>
+        </>
       )}
 
       {/* Create team */}

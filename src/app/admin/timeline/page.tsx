@@ -11,6 +11,7 @@ interface TimelineStep {
   title: string;
   time: string;
   order: number;
+  revealVerse: boolean;
 }
 
 export default function AdminTimelinePage() {
@@ -36,6 +37,7 @@ export default function AdminTimelinePage() {
         title: d.data().title || "",
         time: d.data().time || "",
         order: d.data().order ?? 0,
+        revealVerse: d.data().revealVerse || false,
       })));
     });
     return unsub;
@@ -53,10 +55,14 @@ export default function AdminTimelinePage() {
 
   async function handleChangeStep(stepId: string) {
     if (stepId === currentPosition) return;
+    const step = steps.find((s) => s.id === stepId);
     await updateDoc(doc(db, "events", EVENT_ID), {
       timelinePosition: stepId,
+      verseHintActive: step?.revealVerse || false,
     });
   }
+
+  const [newRevealVerse, setNewRevealVerse] = useState(false);
 
   async function handleAddStep() {
     if (!newTitle.trim() || !newTime.trim()) return;
@@ -64,10 +70,12 @@ export default function AdminTimelinePage() {
       title: newTitle.trim(),
       time: newTime.trim(),
       order: steps.length,
+      revealVerse: newRevealVerse,
       createdAt: serverTimestamp(),
     });
     setNewTitle("");
     setNewTime("");
+    setNewRevealVerse(false);
     setAdding(false);
   }
 
@@ -163,6 +171,18 @@ export default function AdminTimelinePage() {
               />
             </div>
           </div>
+          <label className="flex items-center gap-3 mt-1">
+            <input
+              type="checkbox"
+              checked={newRevealVerse}
+              onChange={(e) => setNewRevealVerse(e.target.checked)}
+              className="w-4 h-4 rounded accent-amber-500"
+            />
+            <span className="text-sm text-white/60">
+              <span className="material-symbols-outlined text-sm align-middle mr-1 text-amber-400">auto_stories</span>
+              Afficher le verset comme indice a cette etape
+            </span>
+          </label>
           <button
             onClick={handleAddStep}
             disabled={!newTitle.trim() || !newTime.trim()}
@@ -264,8 +284,31 @@ export default function AdminTimelinePage() {
                       </span>
                     )}
 
+                    {/* Verse badge */}
+                    {step.revealVerse && (
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 text-[10px] font-bold shrink-0" title="Le verset sera revele a cette etape">
+                        <span className="material-symbols-outlined text-xs">auto_stories</span>
+                        VERSET
+                      </span>
+                    )}
+
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={async () => {
+                          await updateDoc(doc(db, "events", EVENT_ID, "timeline", step.id), {
+                            revealVerse: !step.revealVerse,
+                          });
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          step.revealVerse
+                            ? "text-purple-400 hover:text-purple-300"
+                            : "text-white/20 hover:text-purple-400"
+                        }`}
+                        title={step.revealVerse ? "Desactiver l'indice verset" : "Activer l'indice verset"}
+                      >
+                        <span className="material-symbols-outlined text-base">auto_stories</span>
+                      </button>
                       <button
                         onClick={() => handleMoveStep(step.id, "up")}
                         disabled={i === 0}
