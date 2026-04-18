@@ -510,29 +510,6 @@ function JeuPage() {
     >
       <ToastContainer />
 
-      {/* Verse hint banner — triggered by timeline */}
-      {verseHintActive && phrases.length > 0 && phrases[0].reference && !phraseComplete && (
-        <motion.div
-          className="mx-5 mb-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl p-5 text-center"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        >
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span className="material-symbols-outlined text-purple-400 text-xl">auto_stories</span>
-            <p className="text-xs font-bold uppercase tracking-widest text-purple-400">
-              Indice special
-            </p>
-          </div>
-          <p className="font-headline text-lg font-bold text-on-surface">
-            {phrases[0].reference}
-          </p>
-          <p className="text-xs text-on-surface-variant mt-2">
-            Ce verset est la cle de votre phrase mystere !
-          </p>
-        </motion.div>
-      )}
-
       {/* Header */}
       <motion.div
         className="px-5 mb-5"
@@ -630,12 +607,24 @@ function JeuPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: pi * 0.15 }}
           >
-            {/* Hidden reference indicator */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-primary/30 text-lg">auto_stories</span>
-              <span className="text-xs text-on-surface-variant/40 font-bold uppercase tracking-widest">
-                Verset mystere
-              </span>
+            {/* Reference indicator — reveals verse when timeline triggers it */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary/30 text-lg">auto_stories</span>
+                <span className="text-xs text-on-surface-variant/40 font-bold uppercase tracking-widest">
+                  Verset mystere
+                </span>
+              </div>
+              {verseHintActive && phrase.reference && (
+                <motion.span
+                  className="text-xs font-bold text-purple-500 bg-purple-500/10 px-2.5 py-1 rounded-full"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  {phrase.reference}
+                </motion.span>
+              )}
             </div>
 
             {/* Phrase as inline sentence with clickable word blocks */}
